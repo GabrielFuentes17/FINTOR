@@ -1,2 +1,16 @@
 @import "tailwindcss";
 @import "flowbite/src/themes/default";
+
+@layer components {
+	.content {
+		display: none;
+	}
+
+	.content.active {
+		display: block;
+	}
+
+	.tab.active {
+		font-weight: 700;
+	}
+}
