@@ -5,24 +5,32 @@
     <title>Hello World!</title>
     <link rel="stylesheet" href="output.css" />
   </head>
-  <body >
+  <body class="overflow-clip" >
 
-  <h1 class="text-2xl font-semibold pt-4 px-2">FINTOR</h1>
+  <h1 class="text-2xl font-black tracking-tight text-[#4C8B2B]">FINTOR</h1>
   <p class="py-0 px-2  ">Finanzas personales</p>
 
-<div class="tabs flex w-full ">
-    <div class="button-tabs flex-col flex w-40 shrink-0 gap-4 border-r border-black ">
-        <button id="tab active" onclick="openTab(event,'tab1')">Dashboard </button>
-        <button id="tab" onclick="openTab(event,'tab2')">Transacciones </button>
-        <button id="tab" onclick="openTab(event,'tab3')">Presupuesto </button>
-        <button id="tab" onclick="openTab(event,'tab4')">Ahorros</button> 
+<div class="tabs flex ">
+    
+    <div class="button-tabs mx-auto w-[320px] rounded-xl px-6 py-12 shadow-xl ">
+        <section class="side-bar grid place-items-start gap-4 text-gray-500">
+        <h2 class=" text-center p-2 text-gray-400 text-2xs">Principal</h2>
+        <button id="tab active" onclick="openTab(event,'tab1')" class=" w-full text-left hover:bg-gray-200 px-2 py-2 rounded-md hover:text-gray-700 transition-all" >Dashboard </button>
+        <button id="tab" onclick="openTab(event,'tab2')" class="w-full text-left hover:bg-gray-200 px-2 py-2 rounded-md hover:text-gray-700 transition-all">Transacciones </button>
+        <button id="tab" onclick="openTab(event,'tab3')" class="w-full text-left hover:bg-gray-200 px-2 py-2 rounded-md hover:text-gray-700 transition-all">Presupuesto </button>
+        <button id="tab" onclick="openTab(event,'tab4')" class="w-full text-left hover:bg-gray-200 px-2 py-2 rounded-md hover:text-gray-700 transition-all">Ahorros</button> 
+        <button id="tab" onclick="openTab(event,'tab5')" class="w-full text-left hover:bg-gray-200 px-2 py-2 rounded-md hover:text-gray-700 transition-all">Recordatorios</button> 
+        <h2 class=" text-center p-2 text-gray-400 text-2xs" class="w-full text-left hover:bg-gray-200 px-2 py-2 rounded-md hover:text-gray-700 transition-all">Analisis</h2>
+        <button id="tab" onclick="openTab(event,'tab6')" class="w-full text-left hover:bg-gray-200 px-2 py-2 rounded-md hover:text-gray-700 transition-all">Reportes</button>
+        <button id="tab" onclick="openTab(event,'tab7')"class="w-full text-left hover:bg-gray-200 px-2 py-2 rounded-md hover:text-gray-700 transition-all">Perfil</button>
     </div>
-    <div class="tab-content px-4 flex-1 ">
-        <div id="tab1" class="content active">
+    </section>
+    <div class="tab-content px-4 flex-1 bg-gray-50">
+        <div id="tab1" class="content active tab-transition ">
             <h2>Dashboard</h2>
             <p class="text-sm text-gray-600 mt-2">Aqui veras un resumen rapido de tus ingresos, gastos y balance actual para tomar decisiones al instante.</p>
         </div>
-        <div id="tab2" class="content">
+        <div id="tab2" class="content tab-">
             <h2>Transacciones</h2>
             <p class="text-sm text-gray-600 mt-2">En esta seccion registras y consultas todos tus movimientos, incluyendo fecha, monto, categoria y tipo de transaccion.</p>
         </div>
@@ -33,6 +41,18 @@
         <div id="tab4" class="content">
             <h2>Ahorros</h2>
             <p class="text-sm text-gray-600 mt-2">Establece metas de ahorro, revisa tu progreso y organiza aportes periodicos para cumplir objetivos financieros.</p>
+        </div>
+        <div id="tab5" class="content">
+            <h2>Recordatorios</h2>
+            <p class="text-sm text-gray-600 mt-2">Aqui estaran los Recordatorios</p>
+        </div>
+        <div id="tab6" class="content">
+            <h2>Reportes</h2>
+            <p class="text-sm text-gray-600 mt-2">Consulta reportes detallados con resumen de ingresos, gastos, tendencias mensuales y comparaciones para entender mejor tu salud financiera.</p>
+        </div>
+        <div id="tab7" class="content">
+            <h2>Perfil</h2>
+            <p class="text-sm text-gray-600 mt-2">Revisa y actualiza tus datos personales, preferencias de la cuenta y configuraciones para adaptar la aplicacion a tu manera de trabajar.</p>
         </div>
     </div>
 </div>
