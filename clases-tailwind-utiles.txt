@@ -1,0 +1,123 @@
+TAILWIND UTILITIES REUTILIZABLES
+
+1) Layout
+- flex: activa layout flexible en una fila.
+- flex-col: apila elementos en columna.
+- flex-row: alinea elementos en fila.
+- items-center: centra verticalmente en un contenedor flex.
+- items-start: alinea al inicio en vertical.
+- justify-between: separa elementos hacia los extremos.
+- justify-center: centra horizontalmente.
+- flex-1: hace que un elemento ocupe el espacio restante.
+- flex-shrink-0: evita que un elemento se encoja.
+- overflow-hidden: oculta contenido que se sale.
+- overflow-y-auto: agrega scroll vertical si hace falta.
+- hidden: oculta un elemento.
+- block: muestra un elemento como bloque.
+- grid: activa grid.
+- grid-cols-1: una columna.
+- grid-cols-2: dos columnas.
+- grid-cols-3: tres columnas.
+- md:flex-row: cambia a fila desde md.
+- md:grid-cols-3: cambia a 3 columnas desde md.
+
+2) Espaciado
+- p-4: padding en todos los lados.
+- px-4: padding horizontal.
+- py-4: padding vertical.
+- pt-4: padding superior.
+- m-4: margin en todos los lados.
+- mt-4: margin superior.
+- mb-4: margin inferior.
+- gap-2: separacion entre elementos hijos en flex/grid.
+- gap-4: separacion media.
+- space-y-3: separacion vertical entre hijos.
+- space-y-5: separacion vertical mas amplia.
+
+3) Tamano
+- w-full: ocupa todo el ancho.
+- w-64: ancho fijo.
+- w-40: ancho medio.
+- h-4: alto pequeño.
+- h-6: alto para switches o badges.
+- h-24: alto de grafico o bloque.
+- max-w-5xl: limita el ancho maximo.
+- min-w-0: permite que el texto se recorte dentro de flex.
+
+4) Bordes y forma
+- rounded: bordes redondeados suaves.
+- rounded-lg: redondeo medio.
+- rounded-xl: redondeo marcado.
+- rounded-2xl: redondeo grande.
+- rounded-full: forma circular o tipo pill.
+- border: agrega borde.
+- border-b: borde inferior.
+- border-r: borde derecho.
+- border-gray-100: borde gris muy suave.
+- border-gray-800: borde oscuro.
+
+5) Color y tema
+- bg-white: fondo blanco.
+- bg-gray-50: fondo gris muy claro.
+- bg-gray-900: fondo oscuro.
+- text-gray-700: texto gris medio.
+- text-gray-400: texto gris claro.
+- text-white: texto blanco.
+- dark:bg-gray-950: fondo oscuro en modo dark.
+- dark:text-gray-200: texto claro en modo dark.
+- bg-[#4C8B2B]: verde personalizado.
+- text-[#4C8B2B]: texto verde personalizado.
+
+6) Texto
+- text-xs: texto pequeno.
+- text-sm: texto normal pequeno.
+- text-lg: texto grande.
+- text-xl: texto mas grande.
+- text-2xl: titulo destacado.
+- font-medium: peso medio.
+- font-semibold: semi-negrita.
+- font-bold: negrita.
+- font-black: muy negrita.
+- uppercase: mayusculas.
+- tracking-wider: separacion extra entre letras.
+- tracking-widest: separacion mayor.
+- truncate: corta texto largo con puntos suspensivos.
+- text-center: centra el texto.
+- leading-none: reduce el interlineado.
+
+7) Estados y visibilidad
+- hover:bg-gray-50: cambia fondo al pasar el mouse.
+- hover:underline: subraya al pasar el mouse.
+- transition-all: anima todos los cambios.
+- transition-colors: anima cambios de color.
+- duration-300: duracion media de animacion.
+- active: clase para estado seleccionado.
+- opacity-0: invisible pero ocupa espacio.
+- opacity-100: visible.
+- z-10: eleva el elemento sobre otros.
+- z-40: eleva mas.
+- z-50: modal o capa superior.
+
+8) Patrones utiles de este proyecto
+- hidden fade-in space-y-5: vista oculta que aparece con separacion vertical.
+- bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-5: tarjeta base.
+- flex items-center gap-3: fila con icono y texto.
+- flex items-center justify-between: contenido a los extremos.
+- grid grid-cols-3 gap-3: resumen en 3 columnas.
+- w-full px-4 py-2.5 rounded-xl font-bold: boton grande.
+- bg-[#EEF5E9] dark:bg-[#1a2e12] border border-[#DCEBCF]: bloque destacado suave.
+- bg-red-50 dark:bg-red-900/20: alerta o gasto.
+- bg-blue-50 dark:bg-blue-900/20: informacion o insight.
+- bg-gray-100 dark:bg-gray-800 rounded-full h-2.5: barra de progreso.
+
+9) Ejemplos rapidos
+- Card: bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-5
+- Boton primario: bg-[#4C8B2B] text-white px-4 py-2.5 rounded-xl font-bold
+- Badge: inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold
+- Contenedor flexible: flex items-center justify-between gap-4
+- Lista: space-y-3
+- Panel responsive: grid grid-cols-1 md:grid-cols-2 gap-5
+
+10) Nota practica
+- Repite estas estructuras como bloques base y solo cambia colores, tamanos o espaciado.
+- Si una clase no hace nada, revisa si el archivo esta siendo leido por Tailwind y si la clase existe en el HTML.

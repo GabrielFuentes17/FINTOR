@@ -1,2 +1,25 @@
 @import "tailwindcss";
 @import "flowbite/src/themes/default";
+
+@layer components {
+	.content {
+		 opacity: 0;
+        transform: translateY(10px);
+        max-height: 0;
+        overflow: hidden;
+        pointer-events: none;
+        transition: opacity 0.25s ease, transform 0.25s ease, max-height 0.25s ease;
+	}
+
+	.content.active {
+		opacity: 1;
+        transform: translateY(0);
+        max-height: 500px;
+        pointer-events: auto;
+	}
+
+	.tab.active {
+		font-weight: 700;
+	}
+
+}
