@@ -8,3 +8,13 @@ function openTab(evt, tabName) {
   document.getElementById(tabName).classList.add("active");
   evt.currentTarget.classList.add("active");
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+  const logoutBtn = document.getElementById('logoutBtn');
+
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', () => {
+      window.electronAPI.logout();
+    });
+  }
+});
