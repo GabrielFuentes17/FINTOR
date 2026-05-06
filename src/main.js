@@ -55,9 +55,9 @@ const createMainWindow = () => {
     height: 600,
     show: false,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
+          preload: path.join(__dirname, 'preload.js'),
+          contextIsolation: false,
+          nodeIntegration: true,
     },
   });
 

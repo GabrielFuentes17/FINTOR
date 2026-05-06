@@ -1,28 +1,141 @@
 @import "tailwindcss";
 @import "flowbite/src/themes/default";
 
+@layer base {
+	:root {
+		color-scheme: light;
+	}
+
+	body {
+		font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+	}
+
+	body.app-shell {
+		background:
+			radial-gradient(circle at top left, rgba(194, 224, 166, 0.18), transparent 30%),
+			radial-gradient(circle at top right, rgba(76, 139, 43, 0.1), transparent 26%),
+			linear-gradient(180deg, #f8faf5 0%, #f5f7f2 100%);
+	}
+
+	.dark body.app-shell {
+		background:
+			radial-gradient(circle at top left, rgba(76, 139, 43, 0.16), transparent 28%),
+			radial-gradient(circle at top right, rgba(194, 224, 166, 0.08), transparent 26%),
+			linear-gradient(180deg, #020617 0%, #0b1220 100%);
+	}
+
+	::-webkit-scrollbar {
+		width: 6px;
+	}
+
+	::-webkit-scrollbar-track {
+		background: transparent;
+	}
+
+	::-webkit-scrollbar-thumb {
+		background: #d1d5db;
+		border-radius: 999px;
+	}
+
+	.dark ::-webkit-scrollbar-thumb {
+		background: #4b5563;
+	}
+}
+
 @layer components {
 	.content {
 		position: absolute;
 		inset: 0;
-		 opacity: 0;
-        transform: translateY(10px);
-        max-height: 0;
-        overflow: hidden;
-        pointer-events: none;
-        z-index: 0;
-        transition: opacity 0.25s ease, transform 0.25s ease, max-height 0.25s ease;
+		opacity: 0;
+		transform: translateY(12px);
+		max-height: 0;
+		overflow: hidden;
+		pointer-events: none;
+		z-index: 0;
+		transition: opacity 0.25s ease, transform 0.25s ease, max-height 0.25s ease;
 	}
 
 	.content.active {
 		position: absolute;
 		inset: 0;
 		opacity: 1;
-        transform: translateY(0);
+		transform: translateY(0);
         max-height: none;
         overflow: visible;
         pointer-events: auto;
 		z-index: 10;
+	}
+
+	.nav-link {
+		transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+	}
+
+	.nav-link:hover {
+		transform: translateX(1px);
+	}
+
+	.nav-link.bg-green-100,
+	.nav-link.nav-active {
+		background: #eef5e9;
+		color: #4c8b2b;
+		box-shadow: inset 0 0 0 1px rgba(76, 139, 43, 0.08);
+	}
+
+	.nav-link.bg-green-100 svg,
+	.nav-link.nav-active svg {
+		color: #4c8b2b;
+	}
+
+	.nav-link.text-slate-600,
+	.nav-link.nav-inactive {
+		color: #6b7280;
+	}
+
+	.nav-link.text-slate-600:hover,
+	.nav-link.nav-inactive:hover {
+		background: #f9fafb;
+	}
+
+	.modal-overlay {
+		backdrop-filter: blur(4px);
+	}
+
+	#modal-overlay > div,
+	#budget-modal-overlay > div,
+	#reminder-modal-overlay > div,
+	#savings-modal-overlay > div {
+		border-radius: 1.25rem;
+		box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
+	}
+
+	#modal-overlay,
+	#budget-modal-overlay,
+	#reminder-modal-overlay,
+	#savings-modal-overlay {
+		background: rgba(2, 6, 23, 0.48);
+	}
+
+	#sidebar {
+		background: rgba(255, 255, 255, 0.95);
+		backdrop-filter: blur(10px);
+	}
+
+	.dark #sidebar {
+		background: rgba(3, 7, 18, 0.9);
+	}
+
+	#sidebar-overlay.active {
+		display: block;
+	}
+
+	.tag {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		padding: 2px 10px;
+		border-radius: 999px;
+		font-size: 11px;
+		font-weight: 600;
 	}
 
 }

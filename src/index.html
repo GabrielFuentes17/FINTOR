@@ -14,7 +14,7 @@
       }
     </style>
   </head>
-  <body class="min-h-screen overflow-x-hidden bg-slate-50 font-sans text-slate-900 antialiased">
+  <body class="app-shell min-h-screen overflow-x-hidden bg-slate-50 font-sans text-slate-900 antialiased">
     <div class="flex min-h-screen">
       <!-- Sidebar -->
       <aside class="flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white">
@@ -114,18 +114,18 @@
           <div class="grid gap-4 sm:grid-cols-3">
             <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-sm">
               <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Ingresos</p>
-              <p class="mt-3 text-3xl font-bold text-green-600">$400</p>
-              <p class="mt-2 text-xs font-medium text-green-600">Sueldo medio tiempo</p>
+              <p id="dashboard-income-value" class="mt-3 text-3xl font-bold text-green-600">$400</p>
+              <p id="dashboard-income-note" class="mt-2 text-xs font-medium text-green-600">Sueldo medio tiempo</p>
             </div>
             <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-sm">
               <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Gastos</p>
-              <p class="mt-3 text-3xl font-bold text-red-500">$231</p>
-              <p class="mt-2 text-xs font-medium text-red-500">Vida universitaria · abr 2026</p>
+              <p id="dashboard-expense-value" class="mt-3 text-3xl font-bold text-red-500">$231</p>
+              <p id="dashboard-expense-note" class="mt-2 text-xs font-medium text-red-500">Vida universitaria · abr 2026</p>
             </div>
             <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-sm">
               <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Balance</p>
-              <p class="mt-3 text-3xl font-bold text-slate-900">$169</p>
-              <p class="mt-2 text-xs font-medium text-slate-500">Después de pagos UEES</p>
+              <p id="dashboard-balance-value" class="mt-3 text-3xl font-bold text-slate-900">$169</p>
+              <p id="dashboard-balance-note" class="mt-2 text-xs font-medium text-slate-500">Después de pagos UEES</p>
             </div>
           </div>
 
@@ -284,7 +284,7 @@
             <div class="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h1 class="text-3xl font-bold tracking-tight text-slate-900">Transacciones</h1>
-                <p class="mt-1 text-sm text-slate-500">Historial de movimientos · Abril 2026</p>
+                <p id="transactions-subtitle" class="mt-1 text-sm text-slate-500">Historial de movimientos</p>
               </div>
               <button type="button" class="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-green-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-green-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-600 focus-visible:ring-offset-2" onclick="abrirModal()">
                 <span class="text-base font-light leading-none">+</span>
@@ -311,7 +311,7 @@
           <div class="flex items-start justify-between">
             <div>
               <h2 class="text-2xl font-bold text-slate-900">Presupuesto</h2>
-              <p class="mt-2 text-sm text-slate-600">Límites de gasto - Abril 2026</p>
+              <p id="budget-subtitle" class="mt-2 text-sm text-slate-600">Límites de gasto</p>
             </div>
             <button type="button" class="ml-4 inline-flex items-center gap-2 rounded-full bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700" onclick="openBudgetModal()">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"/></svg>
@@ -485,11 +485,11 @@
           <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 class="text-2xl font-bold text-slate-900">Reportes</h2>
-              <p class="mt-2 text-sm text-slate-600">Ingresos vs gastos, distribución y análisis del mes.</p>
+              <p id="reports-subtitle" class="mt-2 text-sm text-slate-600">Ingresos vs gastos, distribución y análisis del mes.</p>
             </div>
             <div class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 shadow-sm">
               <span class="h-2.5 w-2.5 rounded-full bg-green-500"></span>
-              Abril 2026
+              <span id="reports-month-label">Mes actual</span>
             </div>
           </div>
 

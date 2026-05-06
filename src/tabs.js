@@ -4,8 +4,8 @@ function openTab(evt, tabName) {
 
   contents.forEach(c => c.classList.remove("active"));
   links.forEach(t => {
-    t.classList.remove("bg-green-100", "text-green-800", "font-semibold");
-    t.classList.add("font-medium", "text-slate-600");
+    t.classList.remove("bg-green-100", "text-green-800", "font-semibold", "nav-active");
+    t.classList.add("font-medium", "text-slate-600", "nav-inactive");
     t.querySelectorAll("svg").forEach(svg => {
       svg.classList.remove("text-green-800");
       if (!svg.classList.contains("text-white")) svg.classList.add("text-slate-400");
@@ -14,6 +14,14 @@ function openTab(evt, tabName) {
 
   const panel = document.getElementById(tabName);
   if (panel) panel.classList.add("active");
+
+  if (tabName === 'tab1') {
+    try {
+      renderDashboard();
+    } catch (e) {
+      console.error('renderDashboard error', e);
+    }
+  }
 
   // If the presupuesto tab is opened, render its dynamic UI
   if (tabName === 'tab3') {
@@ -57,10 +65,10 @@ function openTab(evt, tabName) {
     }
   }
 
-  const trigger = evt.currentTarget?.closest?.(".nav-link") ?? evt.currentTarget;
+  const trigger = evt?.currentTarget?.closest?.(".nav-link") ?? evt?.currentTarget;
   if (trigger && trigger.classList.contains("nav-link")) {
-    trigger.classList.add("bg-green-100", "text-green-800", "font-semibold");
-    trigger.classList.remove("text-slate-600");
+    trigger.classList.add("bg-green-100", "text-green-800", "font-semibold", "nav-active");
+    trigger.classList.remove("text-slate-600", "nav-inactive");
     trigger.querySelectorAll("svg").forEach(svg => {
       svg.classList.remove("text-slate-400");
       svg.classList.add("text-green-800");
@@ -68,27 +76,82 @@ function openTab(evt, tabName) {
   }
 }
 
-        const totalBudget = budgetEntries.reduce((sum, [, limit]) => sum + Number(limit || 0), 0);
-        const totalSpent = budgetEntries.reduce((sum, [name]) => sum + (Number(spent[name] || 0)), 0);
-        const totalAvailable = Math.max(0, totalBudget - totalSpent);
-let txTipo = "ingreso";
-let filtroActual = "todas";
-let transacciones = [];
-let budgetState = {};
-let savingsGoalsState = [];
-let remindersState = [];
-let profileState = null;
-let editingTxId = null;
+function switchTab(tabName) {
+  const trigger = document.querySelector(`.nav-link[data-tab="${tabName}"]`);
+  openTab({ currentTarget: trigger }, tabName);
+}
+
+function formatMonthLabel(date = new Date()) {
+  const months = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+  return `${months[date.getMonth()] ?? "mes"} ${date.getFullYear()}`;
+}
+
+function renderStaticMetadata() {
+  const profile = getProfileData();
+  const monthLabel = formatMonthLabel();
+
+  const dashboardSubtitle = document.getElementById("dashboard-income-note");
+  const dashboardExpenseNote = document.getElementById("dashboard-expense-note");
+  const dashboardBalanceNote = document.getElementById("dashboard-balance-note");
+  const transactionsSubtitle = document.getElementById("transactions-subtitle");
+  const budgetSubtitle = document.getElementById("budget-subtitle");
+  const reportsSubtitle = document.getElementById("reports-subtitle");
+  const reportsMonthLabel = document.getElementById("reports-month-label");
+
+  if (dashboardSubtitle) dashboardSubtitle.textContent = `Ingreso mensual · ${profile.currency || 'USD'}`;
+  if (dashboardExpenseNote) dashboardExpenseNote.textContent = `Gastos registrados · ${monthLabel}`;
+  if (dashboardBalanceNote) dashboardBalanceNote.textContent = `Balance actual · ${monthLabel}`;
+  if (transactionsSubtitle) transactionsSubtitle.textContent = `Historial de movimientos · ${monthLabel}`;
+  if (budgetSubtitle) budgetSubtitle.textContent = `Límites de gasto · ${monthLabel}`;
+  if (reportsSubtitle) reportsSubtitle.textContent = `Ingresos vs gastos, distribución y análisis de ${monthLabel}.`;
+  if (reportsMonthLabel) reportsMonthLabel.textContent = monthLabel;
+}
+
+function renderDashboard() {
+  const profile = getProfileData();
+  const totalExpenses = transacciones
+    .filter(tx => tx.tipo === UI_EXPENSE_TYPE)
+    .reduce((sum, tx) => sum + (Number(tx.monto) || 0), 0);
+  const balance = Number(profile.income || 0) - totalExpenses;
+
+  const incomeValue = document.getElementById("dashboard-income-value");
+  const incomeNote = document.getElementById("dashboard-income-note");
+  const expenseValue = document.getElementById("dashboard-expense-value");
+  const expenseNote = document.getElementById("dashboard-expense-note");
+  const balanceValue = document.getElementById("dashboard-balance-value");
+  const balanceNote = document.getElementById("dashboard-balance-note");
+
+  if (incomeValue) incomeValue.textContent = fmtMoneyCompact(profile.income || 0);
+  if (incomeNote) incomeNote.textContent = `Ingreso mensual · ${profile.currency || 'USD'}`;
+  if (expenseValue) expenseValue.textContent = fmtMoneyCompact(totalExpenses);
+  if (expenseNote) expenseNote.textContent = 'Gastos registrados';
+  if (balanceValue) balanceValue.textContent = fmtMoneyCompact(balance);
+  if (balanceNote) balanceNote.textContent = balance >= 0 ? 'Saldo disponible' : 'Saldo negativo';
+}
+
+var txTipo = "ingreso";
+var filtroActual = "todas";
+var transacciones = [];
+var budgetState = {};
+var savingsGoalsState = [];
+var remindersState = [];
+var profileState = null;
+var editingTxId = null;
 
 function toUiTransaction(row) {
+  const rawType = String(row?.type ?? row?.tipo ?? "ingreso");
   return {
     id: row?.id,
-    tipo: String(row?.type ?? row?.tipo ?? "ingreso"),
+    tipo: rawType === DB_EXPENSE_TYPE ? UI_EXPENSE_TYPE : rawType,
     desc: String(row?.description ?? row?.desc ?? ""),
     monto: Number(row?.amount ?? row?.monto) || 0,
     cat: String(row?.category ?? row?.cat ?? ""),
     fecha: String(row?.date ?? row?.fecha ?? hoyISO()),
   };
+}
+
+function toDbTransactionType(uiType) {
+  return uiType === UI_EXPENSE_TYPE ? DB_EXPENSE_TYPE : uiType;
 }
 
 function normalizeBudgetMap(map) {
@@ -159,6 +222,8 @@ async function hydrateFinanceState() {
 
 const INGRESO_CATS = new Set(["Salario", "Freelance", "Beca", "Inversión", "Ingresos"]);
 const GASTO_CATS = new Set(["Comida", "Transporte", "Vivienda", "Salud", "Educación", "Entretenimiento", "Otro"]);
+const UI_EXPENSE_TYPE = "gasto";
+const DB_EXPENSE_TYPE = "egreso";
 
 function hoyISO() {
   const d = new Date();
@@ -235,7 +300,7 @@ function setTipo(t) {
   const cat = document.getElementById("tx-cat");
   const v = cat.value;
   const ok =
-    (t === "ingreso" && INGRESO_CATS.has(v)) || (t === "egreso" && GASTO_CATS.has(v));
+    (t === "ingreso" && INGRESO_CATS.has(v)) || (t === UI_EXPENSE_TYPE && GASTO_CATS.has(v));
   if (!ok) cat.value = "";
 }
 
@@ -273,7 +338,7 @@ async function guardarTx() {
   if (
     cat &&
     ((txTipo === "ingreso" && !INGRESO_CATS.has(cat)) ||
-      (txTipo === "egreso" && !GASTO_CATS.has(cat)))
+      (txTipo === UI_EXPENSE_TYPE && !GASTO_CATS.has(cat)))
   ) {
     mostrarError("err-cat");
     ok = false;
@@ -299,7 +364,7 @@ async function guardarTx() {
 
     try {
       const saved = await window.electronAPI?.finance?.transactions?.update({ id: editingTxId, data: {
-        type: newTransaction.tipo,
+        type: toDbTransactionType(newTransaction.tipo),
         description: newTransaction.desc,
         amount: newTransaction.monto,
         category: newTransaction.cat,
@@ -323,7 +388,7 @@ async function guardarTx() {
     cerrarModal();
 
     try {
-      const saved = await window.electronAPI?.finance?.transactions?.create({ type: newTransaction.tipo, description: newTransaction.desc, amount: newTransaction.monto, category: newTransaction.cat, date: newTransaction.fecha });
+      const saved = await window.electronAPI?.finance?.transactions?.create({ type: toDbTransactionType(newTransaction.tipo), description: newTransaction.desc, amount: newTransaction.monto, category: newTransaction.cat, date: newTransaction.fecha });
       if (saved && Number.isFinite(Number(saved.id))) {
         // replace the temporary first element
         transacciones[0] = toUiTransaction(saved);
@@ -732,7 +797,7 @@ function renderPresupuesto() {
   budgetEntries.forEach(([k]) => spent[k] = 0);
 
   transacciones.forEach(tx => {
-    if (tx.tipo !== 'egreso') return;
+    if (tx.tipo !== UI_EXPENSE_TYPE) return;
     // normalize category mapping
     const cat = tx.cat;
     if (cat in spent) {
@@ -757,7 +822,7 @@ function renderPresupuesto() {
         <h2 class="text-2xl font-bold text-slate-900">Presupuesto</h2>
         <p class="mt-2 text-sm text-slate-600">Límites de gasto - Abril 2026</p>
       </div>
-      <button class="ml-4 inline-flex items-center gap-2 rounded-full bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700">
+      <button type="button" class="ml-4 inline-flex items-center gap-2 rounded-full bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700" onclick="openBudgetModal()">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"/></svg>
         Nueva categoría
       </button>
@@ -1033,12 +1098,14 @@ async function saveProfileData() {
   message.textContent = "Perfil guardado correctamente.";
   message.classList.remove("text-red-600");
   message.classList.add("text-green-700");
+  renderDashboard();
   renderPerfil();
 }
 
 function renderReportes() {
   const panel = document.getElementById("tab6");
   if (!panel) return;
+  const profile = getProfileData();
 
   const months = [];
   const dateCursor = new Date();
@@ -1061,16 +1128,16 @@ function renderReportes() {
     const monthBucket = byMonth.get(monthKey);
     if (monthBucket) {
       if (tx.tipo === "ingreso") monthBucket.income += Number(tx.monto) || 0;
-      if (tx.tipo === "egreso") monthBucket.expense += Number(tx.monto) || 0;
+      if (tx.tipo === UI_EXPENSE_TYPE) monthBucket.expense += Number(tx.monto) || 0;
     }
 
-    if (tx.tipo === "egreso") {
+    if (tx.tipo === UI_EXPENSE_TYPE) {
       const current = categoryTotals.get(tx.cat) || 0;
       categoryTotals.set(tx.cat, current + (Number(tx.monto) || 0));
     }
   });
 
-  const incomeTotal = months.reduce((sum, item) => sum + item.income, 0);
+  const incomeTotal = Number(profile.income) || months.reduce((sum, item) => sum + item.income, 0);
   const expenseTotal = months.reduce((sum, item) => sum + item.expense, 0);
   const balanceTotal = incomeTotal - expenseTotal;
   const savingsRate = incomeTotal > 0 ? Math.max(0, Math.round((balanceTotal / incomeTotal) * 1000) / 10) : 0;
@@ -1531,8 +1598,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   document.querySelectorAll(".nav-link").forEach(link => {
-    link.classList.remove("bg-green-100", "text-green-800", "font-semibold");
-    link.classList.add("font-medium", "text-slate-600");
+    link.classList.remove("bg-green-100", "text-green-800", "font-semibold", "nav-active");
+    link.classList.add("font-medium", "text-slate-600", "nav-inactive");
     link.querySelectorAll("svg").forEach(svg => {
       svg.classList.remove("text-green-800");
       svg.classList.add("text-slate-400");
@@ -1541,8 +1608,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const activeNav = document.querySelector('.nav-link[data-tab="tab1"]');
   if (activeNav) {
-    activeNav.classList.add("bg-green-100", "text-green-800", "font-semibold");
-    activeNav.classList.remove("text-slate-600");
+    activeNav.classList.add("bg-green-100", "text-green-800", "font-semibold", "nav-active");
+    activeNav.classList.remove("text-slate-600", "nav-inactive");
     activeNav.querySelectorAll("svg").forEach(svg => {
       svg.classList.remove("text-slate-400");
       svg.classList.add("text-green-800");
@@ -1557,6 +1624,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   setTipo("ingreso");
   await hydrateFinanceState();
+  renderStaticMetadata();
+  renderDashboard();
   renderTxList();
   renderPresupuesto();
   renderAhorros();
