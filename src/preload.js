@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-const electronAPI = {
+const electronAPI = Object.freeze({
   loginSuccess: (userData) => ipcRenderer.send('login-success', userData),
   login: (payload) => ipcRenderer.invoke('auth:login', payload),
   register: (payload) => ipcRenderer.invoke('auth:register', payload),
@@ -36,10 +36,8 @@ const electronAPI = {
       save: (payload) => ipcRenderer.invoke('finance:profile:save', payload),
     },
   },
-};
+});
 
 if (process.contextIsolated) {
   contextBridge.exposeInMainWorld('electronAPI', electronAPI);
-} else {
-  window.electronAPI = electronAPI;
 }
