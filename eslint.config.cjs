@@ -22,7 +22,7 @@ module.exports = [
     },
   },
   {
-    files: ['src/tabs.js', 'src/login/login.js', 'src/login/home.js'],
+    files: ['src/login/login.js', 'src/login/home.js'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'script',
@@ -33,6 +33,20 @@ module.exports = [
     rules: {
       'no-console': 'off',
       'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+    },
+  },
+  {
+    files: ['src/tabs.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'script',
+      globals: {
+        ...globals.browser,
+      },
+    },
+    rules: {
+      'no-console': 'off',
+      'no-unused-vars': 'off',
     },
   },
 ];
