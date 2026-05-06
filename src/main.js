@@ -82,6 +82,15 @@ function sanitizeTransactionUpdatePayload(payload) {
   };
 }
 
+function hardenWindow(webContents) {
+  webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  webContents.on('will-navigate', (event, url) => {
+    if (!url.startsWith('file://')) {
+      event.preventDefault();
+    }
+  });
+}
+
 const createLoginWindow = () => {
   if (loginWindow && !loginWindow.isDestroyed()) {
     loginWindow.focus();
@@ -106,6 +115,7 @@ const createLoginWindow = () => {
     loginWindow = null;
   });
 
+  hardenWindow(loginWindow.webContents);
   loginWindow.loadFile(path.join(__dirname, 'login', 'login.html'));
   if (process.env.NODE_ENV !== 'production') {
     loginWindow.webContents.openDevTools();
@@ -134,8 +144,8 @@ const createMainWindow = () => {
     },
   });
 
+  hardenWindow(mainWindow.webContents);
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
-  // DevTools docked beside the app often looks like a “second sidebar”. Open with Ctrl+Shift+I if needed.
 
   mainWindow.on('closed', () => {
     mainWindow = null;
