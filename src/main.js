@@ -180,7 +180,16 @@ ipcMain.handle('auth:login', (_event, payload) => {
   return result;
 });
 
-ipcMain.handle('auth:register', (_event, payload) => auth.registerUser(app, sanitizeRegisterPayload(payload)));
+ipcMain.handle('auth:register', (_event, payload) => {
+  const result = auth.registerUser(app, sanitizeRegisterPayload(payload));
+
+  if (result.ok) {
+    const profile = financeDb.getProfile(app);
+    financeDb.saveProfile(app, { ...profile, name: result.username });
+  }
+
+  return result;
+});
 ipcMain.handle('auth:get-remembered', () => auth.getRememberedUsername(app));
 ipcMain.handle('auth:reset-password', (_event, payload) => auth.resetPassword(app, sanitizeResetPayload(payload)));
 ipcMain.handle('auth:reset-with-code', (_event, payload) => auth.resetPasswordWithRecoveryCode(app, sanitizeResetCodePayload(payload)));

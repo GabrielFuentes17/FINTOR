@@ -36,6 +36,19 @@ const DEFAULT_REMINDERS = [
 ];
 
 const DEFAULT_PROFILE = {
+  name: 'Usuario FINTOR',
+  email: 'usuario@fintor.local',
+  career: 'Ingeniería - UEES',
+  income: 400,
+  savingsGoal: 120,
+  currency: 'USD',
+  notificationsEnabled: true,
+  alertBudget: true,
+  alertReminders: true,
+  alertMonthly: true,
+};
+
+const LEGACY_PROFILE_SEED = {
   name: 'Franklin M.',
   email: 'franklin.m@uees.edu.ec',
   career: 'Ingeniería - UEES',
@@ -106,6 +119,7 @@ function getDatabase(app) {
       );
     `);
 
+    migrateLegacyProfileSeed(database);
     seedIfEmpty(database);
   }
 
@@ -155,6 +169,33 @@ function seedIfEmpty(db) {
   });
 
   seed();
+}
+
+function migrateLegacyProfileSeed(db) {
+  const row = db.prepare(`
+    SELECT name, email, career, income, savings_goal, currency,
+           notifications_enabled, alert_budget, alert_reminders, alert_monthly
+    FROM profile
+    WHERE id = 1
+  `).get();
+
+  if (!row) return;
+
+  const isLegacySeed =
+    row.name === LEGACY_PROFILE_SEED.name &&
+    row.email === LEGACY_PROFILE_SEED.email &&
+    row.career === LEGACY_PROFILE_SEED.career &&
+    Number(row.income) === LEGACY_PROFILE_SEED.income &&
+    Number(row.savings_goal) === LEGACY_PROFILE_SEED.savingsGoal &&
+    row.currency === LEGACY_PROFILE_SEED.currency &&
+    Number(row.notifications_enabled) === 1 &&
+    Number(row.alert_budget) === 1 &&
+    Number(row.alert_reminders) === 1 &&
+    Number(row.alert_monthly) === 1;
+
+  if (isLegacySeed) {
+    insertOrUpdateProfile(db, DEFAULT_PROFILE);
+  }
 }
 
 function normalizeText(value) {

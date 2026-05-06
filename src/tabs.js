@@ -322,16 +322,24 @@ function normalizeReminder(reminder) {
   };
 }
 
+function parseLocalDateISO(dateISO) {
+  const [year, month, day] = String(dateISO).split("-").map(part => Number.parseInt(part, 10));
+  if (!year || !month || !day) return null;
+
+  const date = new Date(year, month - 1, day);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
 function deriveReminderStateFromDate(dateISO) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const target = new Date(dateISO);
-  if (Number.isNaN(target.getTime())) {
+  const target = parseLocalDateISO(dateISO);
+  if (!target) {
     return { days: 0, status: "próximo" };
   }
 
-  target.setHours(0, 0, 0, 0);
   const millisPerDay = 24 * 60 * 60 * 1000;
   const days = Math.round((target.getTime() - today.getTime()) / millisPerDay);
 
@@ -1145,8 +1153,8 @@ function renderAhorros() {
 
 const PROFILE_STORAGE_KEY = "fintor:profile:v1";
 const DEFAULT_PROFILE = {
-  name: "Franklin M.",
-  email: "franklin.m@uees.edu.ec",
+  name: "Usuario FINTOR",
+  email: "usuario@fintor.local",
   career: "Ingeniería - UEES",
   income: 400,
   savingsGoal: 120,
@@ -1291,7 +1299,7 @@ function renderReportes() {
     }
   });
 
-  const incomeTotal = Number(profile.income) || months.reduce((sum, item) => sum + item.income, 0);
+  const incomeTotal = months.reduce((sum, item) => sum + item.income, 0);
   const expenseTotal = months.reduce((sum, item) => sum + item.expense, 0);
   const balanceTotal = incomeTotal - expenseTotal;
   const savingsRate = incomeTotal > 0 ? Math.max(0, Math.round((balanceTotal / incomeTotal) * 1000) / 10) : 0;
@@ -1468,8 +1476,7 @@ const REMINDER_COLORS = {
 };
 
 function getReminders() {
-  const source = remindersState.length === 0 ? DEFAULT_REMINDERS : remindersState;
-  return source
+  return remindersState
     .map(normalizeReminder)
     .sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.name).localeCompare(String(b.name)));
 }
@@ -1509,6 +1516,54 @@ function reminderShortDate(date) {
   return `${String(Number.parseInt(day, 10)).padStart(2, "0")}<br /><span class="text-2xs font-semibold uppercase">${MESES_CORTO[monthIndex] ?? month}</span>`;
 }
 
+function reminderDateFromDays(daysOffset) {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() + Number(daysOffset));
+  const pad = value => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function syncReminderDateFromDays() {
+  const daysInput = document.getElementById("reminder-days");
+  const dateInput = document.getElementById("reminder-date");
+  const statusInput = document.getElementById("reminder-status");
+
+  if (!daysInput || !dateInput || !statusInput) return;
+
+  const rawDays = daysInput.value.trim();
+  if (!rawDays) {
+    dateInput.value = "";
+    statusInput.value = "próximo";
+    return;
+  }
+
+  const days = Number.parseInt(rawDays, 10);
+  if (!Number.isFinite(days)) return;
+
+  dateInput.value = reminderDateFromDays(days);
+  const derived = deriveReminderStateFromDate(dateInput.value);
+  statusInput.value = derived.status;
+}
+
+function syncReminderDaysFromDate() {
+  const dateInput = document.getElementById("reminder-date");
+  const daysInput = document.getElementById("reminder-days");
+  const statusInput = document.getElementById("reminder-status");
+
+  if (!dateInput || !daysInput || !statusInput) return;
+
+  if (!dateInput.value) {
+    daysInput.value = "";
+    statusInput.value = "próximo";
+    return;
+  }
+
+  const derived = deriveReminderStateFromDate(dateInput.value);
+  daysInput.value = String(derived.days);
+  statusInput.value = derived.status;
+}
+
 function openReminderModal(name = "") {
   const overlay = document.getElementById("reminder-modal-overlay");
   const nameInput = document.getElementById("reminder-name");
@@ -1539,6 +1594,7 @@ function openReminderModal(name = "") {
   colorInput.value = current ? current.color : "red";
   title.textContent = current ? "Editar recordatorio" : "Nuevo recordatorio";
   message.textContent = "";
+  syncReminderDaysFromDate();
 
   overlay.classList.remove("hidden");
   overlay.classList.add("flex");
@@ -1588,12 +1644,18 @@ async function saveReminder() {
     return;
   }
 
-  if (!date) {
-    message.textContent = "Selecciona una fecha.";
+  const parsedDays = Number.parseInt(daysInput.value, 10);
+  const resolvedDate = date || (Number.isFinite(parsedDays) ? reminderDateFromDays(parsedDays) : "");
+
+  if (!resolvedDate) {
+    message.textContent = "Selecciona una fecha o escribe días restantes.";
     return;
   }
 
-  const derived = deriveReminderStateFromDate(date);
+  const derived = deriveReminderStateFromDate(resolvedDate);
+  dateInput.value = resolvedDate;
+  daysInput.value = String(derived.days);
+  statusInput.value = derived.status;
 
   const reminders = getReminders();
   const existingIndex = reminders.findIndex(reminder => reminder.name === originalName);
@@ -1607,7 +1669,7 @@ async function saveReminder() {
     name,
     description,
     amount,
-    date,
+    date: resolvedDate,
     category,
     status: derived.status,
     days: derived.days,
@@ -1780,4 +1842,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   renderReportes();
   renderPerfil();
   renderRecordatorios();
+
+  const reminderDateInput = document.getElementById("reminder-date");
+  const reminderDaysInput = document.getElementById("reminder-days");
+  if (reminderDateInput) reminderDateInput.addEventListener("input", syncReminderDaysFromDate);
+  if (reminderDaysInput) reminderDaysInput.addEventListener("input", syncReminderDateFromDays);
 });
