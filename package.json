@@ -7,6 +7,7 @@
   "private": true,
   "scripts": {
     "start": "electron-forge start",
+    "dev": "npm-run-all --parallel start tailwind:watch",
     "tailwind:build": "tailwindcss -i ./src/index.css -o ./src/output.css",
     "tailwind:watch": "tailwindcss -i ./src/index.css -o ./src/output.css --watch",
     "package": "electron-forge package",
@@ -47,6 +48,7 @@
     "@electron-forge/plugin-fuses": "^7.11.1",
     "@electron/fuses": "^1.8.0",
     "electron": "41.2.0",
-    "electron-reload": "^2.0.0-alpha.1"
+    "electron-reload": "^2.0.0-alpha.1",
+    "npm-run-all": "^4.1.5"
   }
 }

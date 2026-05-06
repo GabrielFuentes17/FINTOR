@@ -1,10 +1,12 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('node:path');
 const auth = require('./src/auth/auth.js');
+const financeDb = require('./db.js');
 
 if (process.env.NODE_ENV !== 'production') {
   require('electron-reload')(__dirname, {
     electron: path.join(__dirname, '..', 'node_modules', '.bin', 'electron'),
+    ignored: /output\.css/,
   });
 }
 
@@ -60,7 +62,7 @@ const createMainWindow = () => {
   });
 
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
-  mainWindow.webContents.openDevTools();
+  // DevTools docked beside the app often looks like a “second sidebar”. Open with Ctrl+Shift+I if needed.
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -97,6 +99,21 @@ ipcMain.handle('auth:get-remembered', () => auth.getRememberedUsername(app));
 ipcMain.handle('auth:reset-password', (_event, payload) => auth.resetPassword(app, payload));
 ipcMain.handle('auth:reset-with-code', (_event, payload) => auth.resetPasswordWithRecoveryCode(app, payload));
 ipcMain.handle('auth:clear-remember', () => auth.clearRememberedUsername(app));
+ipcMain.handle('finance:get-state', () => financeDb.getFinanceState(app));
+ipcMain.handle('finance:transactions:create', (_event, payload) => financeDb.createTransaction(app, payload));
+ipcMain.handle('finance:transactions:update', (_event, payload) => financeDb.updateTransaction(app, payload.id, payload.data));
+ipcMain.handle('finance:transactions:delete', (_event, id) => financeDb.deleteTransaction(app, id));
+ipcMain.handle('finance:budgets:set', (_event, payload) => financeDb.replaceBudgets(app, payload));
+ipcMain.handle('finance:budgets:upsert', (_event, payload) => financeDb.upsertBudget(app, payload));
+ipcMain.handle('finance:budgets:delete', (_event, name) => financeDb.deleteBudget(app, name));
+ipcMain.handle('finance:savings:set', (_event, payload) => financeDb.replaceSavingsGoals(app, payload));
+ipcMain.handle('finance:savings:upsert', (_event, payload) => financeDb.upsertSavingsGoal(app, payload));
+ipcMain.handle('finance:savings:delete', (_event, name) => financeDb.deleteSavingsGoal(app, name));
+ipcMain.handle('finance:reminders:set', (_event, payload) => financeDb.replaceReminders(app, payload));
+ipcMain.handle('finance:reminders:upsert', (_event, payload) => financeDb.upsertReminder(app, payload));
+ipcMain.handle('finance:reminders:delete', (_event, name) => financeDb.deleteReminder(app, name));
+ipcMain.handle('finance:profile:get', () => financeDb.getProfile(app));
+ipcMain.handle('finance:profile:save', (_event, payload) => financeDb.saveProfile(app, payload));
 ipcMain.on('auth:logout', () => {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.close();
