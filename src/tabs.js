@@ -90,21 +90,149 @@ function renderStaticMetadata() {
   const profile = getProfileData();
   const monthLabel = formatMonthLabel();
 
+  const dashboardMonthLabel = document.getElementById("dashboard-month-label");
   const dashboardSubtitle = document.getElementById("dashboard-income-note");
   const dashboardExpenseNote = document.getElementById("dashboard-expense-note");
   const dashboardBalanceNote = document.getElementById("dashboard-balance-note");
+  const sidebarAvatar = document.getElementById("sidebar-avatar");
+  const sidebarUsername = document.getElementById("sidebar-username");
+  const sidebarRemindersBadge = document.getElementById("sidebar-reminders-badge");
   const transactionsSubtitle = document.getElementById("transactions-subtitle");
   const budgetSubtitle = document.getElementById("budget-subtitle");
   const reportsSubtitle = document.getElementById("reports-subtitle");
   const reportsMonthLabel = document.getElementById("reports-month-label");
+  const reportAnalysisMonthChip = document.getElementById("report-analysis-month-chip");
 
+  const reminders = getReminders();
+  const dueAttentionCount = reminders.filter(reminder => reminder.days <= 7).length;
+
+  if (dashboardMonthLabel) dashboardMonthLabel.textContent = monthLabel;
   if (dashboardSubtitle) dashboardSubtitle.textContent = `Ingreso mensual · ${profile.currency || 'USD'}`;
   if (dashboardExpenseNote) dashboardExpenseNote.textContent = `Gastos registrados · ${monthLabel}`;
   if (dashboardBalanceNote) dashboardBalanceNote.textContent = `Balance actual · ${monthLabel}`;
+  if (sidebarAvatar) sidebarAvatar.textContent = profileInitials(profile.name);
+  if (sidebarUsername) sidebarUsername.textContent = profile.name || "Usuario";
+  if (sidebarRemindersBadge) sidebarRemindersBadge.textContent = String(dueAttentionCount);
   if (transactionsSubtitle) transactionsSubtitle.textContent = `Historial de movimientos · ${monthLabel}`;
   if (budgetSubtitle) budgetSubtitle.textContent = `Límites de gasto · ${monthLabel}`;
   if (reportsSubtitle) reportsSubtitle.textContent = `Ingresos vs gastos, distribución y análisis de ${monthLabel}.`;
   if (reportsMonthLabel) reportsMonthLabel.textContent = monthLabel;
+  if (reportAnalysisMonthChip) reportAnalysisMonthChip.textContent = monthLabel;
+}
+
+function renderDashboardRecentList() {
+  const list = document.getElementById("dashboard-recent-list");
+  if (!list) return;
+
+  const recent = [...transacciones]
+    .sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)) || Number(b.id || 0) - Number(a.id || 0))
+    .slice(0, 5);
+
+  if (recent.length === 0) {
+    list.innerHTML = '<li class="py-6 text-center text-sm text-slate-500">Sin movimientos recientes.</li>';
+    return;
+  }
+
+  list.innerHTML = recent.map(tx => {
+    const isIncome = tx.tipo === "ingreso";
+    const amountClass = isIncome ? "text-green-600" : "text-red-500";
+    const amountSign = isIncome ? "+" : "−";
+    const iconBg = txIconBg(tx);
+    return `
+      <li class="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+        <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${iconBg}">
+          <span class="text-xs font-bold text-white">${escapeHtml((tx.cat || tx.desc || "Tx").slice(0, 2).toUpperCase())}</span>
+        </div>
+        <div class="min-w-0 flex-1">
+          <p class="truncate font-semibold text-slate-900">${escapeHtml(tx.desc || "Movimiento")}</p>
+          <p class="text-xs text-slate-500">${fmtFechaLista(tx.fecha)}</p>
+        </div>
+        <p class="shrink-0 text-sm font-semibold ${amountClass}">${amountSign}${fmtMoneyCompact(tx.monto)}</p>
+      </li>
+    `;
+  }).join("");
+}
+
+function renderDashboardUpcomingList() {
+  const list = document.getElementById("dashboard-upcoming-list");
+  if (!list) return;
+
+  const upcoming = getReminders()
+    .filter(reminder => reminder.days >= 0)
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.name).localeCompare(String(b.name)))
+    .slice(0, 3);
+
+  if (upcoming.length === 0) {
+    list.innerHTML = '<div class="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500">No hay pagos próximos.</div>';
+    return;
+  }
+
+  list.innerHTML = upcoming.map(reminder => {
+    const colors = REMINDER_COLORS[reminder.color] || REMINDER_COLORS.gray;
+    return `
+      <div class="flex items-center gap-4 rounded-xl border p-4 shadow-sm ${colors.card}">
+        <p class="w-14 shrink-0 text-center text-sm font-bold leading-tight ${colors.amount}">${reminderShortDate(reminder.date)}</p>
+        <div class="min-w-0 flex-1">
+          <p class="truncate font-semibold text-slate-900">${escapeHtml(reminder.name)}</p>
+          <p class="mt-0.5 text-sm font-bold ${colors.amount}">${fmtMoneyCompact(reminder.amount)}</p>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderDashboardWeekChart() {
+  const chart = document.getElementById("dashboard-week-chart");
+  if (!chart) return;
+
+  const dayLabels = ["L", "M", "M", "J", "V", "S", "D"];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const days = [];
+  for (let i = 6; i >= 0; i -= 1) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    days.push({
+      iso,
+      weekday: d.getDay(),
+      income: 0,
+      expense: 0,
+      isToday: i === 0,
+    });
+  }
+
+  const byDate = new Map(days.map(item => [item.iso, item]));
+  transacciones.forEach(tx => {
+    const bucket = byDate.get(String(tx.fecha));
+    if (!bucket) return;
+    if (tx.tipo === "ingreso") bucket.income += Number(tx.monto) || 0;
+    if (tx.tipo === UI_EXPENSE_TYPE) bucket.expense += Number(tx.monto) || 0;
+  });
+
+  const maxValue = Math.max(
+    ...days.map(item => Math.max(item.income, item.expense)),
+    1,
+  );
+
+  chart.innerHTML = days
+    .map(item => {
+      const incomeHeight = Math.max(10, Math.round((item.income / maxValue) * 100));
+      const expenseHeight = Math.max(10, Math.round((item.expense / maxValue) * 100));
+      const labelClass = item.isToday ? "text-green-800" : "text-slate-400";
+      const dayIndex = item.weekday === 0 ? 6 : item.weekday - 1;
+      return `
+        <div class="flex flex-1 flex-col items-center gap-2">
+          <div class="flex w-full max-w-10 flex-1 flex-col justify-end gap-0.5">
+            <div class="w-full rounded-t-md ${item.isToday ? "bg-green-700 shadow-sm" : "bg-green-300/90"}" style="height: ${incomeHeight}%"></div>
+            <div class="w-full rounded-t-md ${item.isToday ? "bg-red-400/95" : "bg-red-300/90"}" style="height: ${expenseHeight}%"></div>
+          </div>
+          <span class="text-2xs font-semibold ${labelClass}">${dayLabels[dayIndex]}</span>
+        </div>
+      `;
+    })
+    .join("");
 }
 
 function renderDashboard() {
@@ -127,6 +255,10 @@ function renderDashboard() {
   if (expenseNote) expenseNote.textContent = 'Gastos registrados';
   if (balanceValue) balanceValue.textContent = fmtMoneyCompact(balance);
   if (balanceNote) balanceNote.textContent = balance >= 0 ? 'Saldo disponible' : 'Saldo negativo';
+
+  renderDashboardWeekChart();
+  renderDashboardRecentList();
+  renderDashboardUpcomingList();
 }
 
 var txTipo = "ingreso";
@@ -176,16 +308,37 @@ function normalizeSavingsGoal(goal, index = 0) {
 }
 
 function normalizeReminder(reminder) {
+  const date = String(reminder?.date ?? hoyISO());
+  const derived = deriveReminderStateFromDate(date);
   return {
     name: String(reminder?.name ?? ""),
     description: String(reminder?.description ?? ""),
     amount: Number(reminder?.amount) || 0,
-    date: String(reminder?.date ?? hoyISO()),
+    date,
     category: String(reminder?.category ?? "Otro"),
-    days: Number.parseInt(reminder?.days, 10) || 0,
+    days: derived.days,
     color: ["red", "amber", "blue", "gray", "green"].includes(reminder?.color) ? reminder.color : "gray",
-    status: ["mañana", "próximo", "vencido", "lejos"].includes(reminder?.status) ? reminder.status : "próximo",
+    status: derived.status,
   };
+}
+
+function deriveReminderStateFromDate(dateISO) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const target = new Date(dateISO);
+  if (Number.isNaN(target.getTime())) {
+    return { days: 0, status: "próximo" };
+  }
+
+  target.setHours(0, 0, 0, 0);
+  const millisPerDay = 24 * 60 * 60 * 1000;
+  const days = Math.round((target.getTime() - today.getTime()) / millisPerDay);
+
+  if (days < 0) return { days, status: "vencido" };
+  if (days === 1) return { days, status: "mañana" };
+  if (days <= 7) return { days, status: "próximo" };
+  return { days, status: "lejos" };
 }
 
 async function hydrateFinanceState() {
@@ -789,6 +942,7 @@ async function removeBudgetCategory(name) {
 function renderPresupuesto() {
   const panel = document.getElementById('tab3');
   if (!panel) return;
+  const monthLabel = formatMonthLabel();
 
   const budgets = getBudgetMap();
   const budgetEntries = Object.entries(budgets);
@@ -820,7 +974,7 @@ function renderPresupuesto() {
     <div class="flex items-start justify-between">
       <div>
         <h2 class="text-2xl font-bold text-slate-900">Presupuesto</h2>
-        <p class="mt-2 text-sm text-slate-600">Límites de gasto - Abril 2026</p>
+        <p class="mt-2 text-sm text-slate-600">Límites de gasto - ${monthLabel}</p>
       </div>
       <button type="button" class="ml-4 inline-flex items-center gap-2 rounded-full bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700" onclick="openBudgetModal()">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"/></svg>
@@ -873,8 +1027,8 @@ function renderPresupuesto() {
             </div>
           </div>
           <div class="flex items-start gap-2">
-            <button type="button" class="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50" onclick="openBudgetModal(${JSON.stringify(cat)})">Editar</button>
-            <button type="button" class="rounded-lg border border-red-200 bg-white px-2.5 py-1 text-xs font-semibold text-red-600 hover:bg-red-50" onclick="removeBudgetCategory(${JSON.stringify(cat)})">Eliminar</button>
+            <button type="button" class="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50" onclick='openBudgetModal(${JSON.stringify(cat)})'>Editar</button>
+            <button type="button" class="rounded-lg border border-red-200 bg-white px-2.5 py-1 text-xs font-semibold text-red-600 hover:bg-red-50" onclick='removeBudgetCategory(${JSON.stringify(cat)})'>Eliminar</button>
           </div>
         </div>
 
@@ -940,8 +1094,8 @@ function renderAhorros() {
         return `
           <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
             <div class="flex items-start justify-between gap-3">
-              <button type="button" class="flex items-center justify-center rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50" onclick="openSavingsModal(${JSON.stringify(goal.name)})">Editar</button>
-              <button type="button" class="rounded-full border border-red-200 bg-white px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50" onclick="removeSavingsGoal(${JSON.stringify(goal.name)})">Eliminar</button>
+              <button type="button" class="flex items-center justify-center rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50" onclick='openSavingsModal(${JSON.stringify(goal.name)})'>Editar</button>
+              <button type="button" class="rounded-full border border-red-200 bg-white px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50" onclick='removeSavingsGoal(${JSON.stringify(goal.name)})'>Eliminar</button>
             </div>
 
             <div class="mt-2 flex items-center justify-center">
@@ -1314,11 +1468,10 @@ const REMINDER_COLORS = {
 };
 
 function getReminders() {
-  if (remindersState.length === 0) {
-    return DEFAULT_REMINDERS.map(normalizeReminder);
-  }
-
-  return remindersState.map(normalizeReminder);
+  const source = remindersState.length === 0 ? DEFAULT_REMINDERS : remindersState;
+  return source
+    .map(normalizeReminder)
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.name).localeCompare(String(b.name)));
 }
 
 async function saveReminders(reminders) {
@@ -1442,10 +1595,7 @@ async function saveReminder() {
     return;
   }
 
-  if (!Number.isFinite(days)) {
-    message.textContent = "Ingresa los días restantes.";
-    return;
-  }
+  const derived = deriveReminderStateFromDate(date);
 
   const reminders = getReminders();
   const existingIndex = reminders.findIndex(reminder => reminder.name === originalName);
@@ -1461,8 +1611,8 @@ async function saveReminder() {
     amount,
     date,
     category,
-    status,
-    days,
+    status: derived.status,
+    days: derived.days,
     color,
   };
 
@@ -1579,8 +1729,8 @@ function renderRecordatorios() {
                 </div>
               </div>
               <div class="flex items-center justify-end gap-2 pt-2">
-                <button type="button" class="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50" onclick="openReminderModal(${JSON.stringify(reminder.name)})">Editar</button>
-                <button type="button" class="rounded-lg border border-red-200 bg-white px-2.5 py-1 text-xs font-semibold text-red-600 hover:bg-red-50" onclick="removeReminder(${JSON.stringify(reminder.name)})">Eliminar</button>
+                <button type="button" class="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50" onclick='openReminderModal(${JSON.stringify(reminder.name)})'>Editar</button>
+                <button type="button" class="rounded-lg border border-red-200 bg-white px-2.5 py-1 text-xs font-semibold text-red-600 hover:bg-red-50" onclick='removeReminder(${JSON.stringify(reminder.name)})'>Eliminar</button>
               </div>
             </div>
           `;
