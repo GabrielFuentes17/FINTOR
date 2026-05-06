@@ -98,27 +98,6 @@ function clearRememberedUsername(app) {
   return true;
 }
 
-function upsertUser(app, username, password) {
-  const db = getDatabase(app);
-  const passwordHash = bcrypt.hashSync(password, 10);
-  const existingUser = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
-
-  if (existingUser) {
-    db.prepare(`
-      UPDATE users
-      SET password_hash = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE username = ?
-    `).run(passwordHash, username);
-    return 'updated';
-  }
-
-  db.prepare(`
-    INSERT INTO users (username, password_hash)
-    VALUES (?, ?)
-  `).run(username, passwordHash);
-  return 'created';
-}
-
 function registerUser(app, payload) {
   const username = normalizeUsername(payload?.username);
   const password = normalizePassword(payload?.password);

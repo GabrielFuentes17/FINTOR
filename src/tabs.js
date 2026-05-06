@@ -1575,8 +1575,6 @@ async function saveReminder() {
   const amount = Number.parseFloat(amountInput.value);
   const date = dateInput.value;
   const category = categoryInput.value;
-  const status = statusInput.value;
-  const days = Number.parseInt(daysInput.value, 10);
   const color = colorInput.value;
   const originalName = originalInput.value.trim();
 
