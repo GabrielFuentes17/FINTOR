@@ -16,6 +16,7 @@ if (require('electron-squirrel-startup')) {
 
 let loginWindow;
 let mainWindow;
+let activeUsername = null;   // ← AGREGAR
 
 const createLoginWindow = () => {
   if (loginWindow && !loginWindow.isDestroyed()) {
@@ -86,6 +87,9 @@ ipcMain.handle('auth:login', (_event, payload) => {
   const result = auth.authenticateUser(app, payload);
 
   if (result.ok) {
+    activeUsername = result.username;                          // ← AGREGAR
+    const p = financeDb.getProfile(app);                      // ← AGREGAR
+    financeDb.saveProfile(app, { ...p, name: result.username }); // ← AGREGAR
     setImmediate(() => {
       createMainWindow();
     });
@@ -99,6 +103,7 @@ ipcMain.handle('auth:get-remembered', () => auth.getRememberedUsername(app));
 ipcMain.handle('auth:reset-password', (_event, payload) => auth.resetPassword(app, payload));
 ipcMain.handle('auth:reset-with-code', (_event, payload) => auth.resetPasswordWithRecoveryCode(app, payload));
 ipcMain.handle('auth:clear-remember', () => auth.clearRememberedUsername(app));
+ipcMain.handle('auth:current-user', () => activeUsername ?? '');
 ipcMain.handle('finance:get-state', () => financeDb.getFinanceState(app));
 ipcMain.handle('finance:transactions:create', (_event, payload) => financeDb.createTransaction(app, payload));
 ipcMain.handle('finance:transactions:update', (_event, payload) => financeDb.updateTransaction(app, payload.id, payload.data));

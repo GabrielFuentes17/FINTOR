@@ -17,7 +17,7 @@
   <body class="app-shell min-h-screen overflow-x-hidden bg-slate-50 font-sans text-slate-900 antialiased">
     <div class="flex min-h-screen">
       <!-- Sidebar -->
-      <aside class="flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white">
+      <aside id="sidebar" class="flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white">
         <div class="px-6 pb-6 pt-8">
           <p class="text-lg font-bold uppercase leading-none tracking-tight text-green-800">FINTOR</p>
           <p class="mt-2 text-2xs font-semibold uppercase leading-tight tracking-[0.12em] text-slate-400">UEES - ING. SOFTWARE</p>
@@ -86,9 +86,9 @@
             Modo oscuro
           </button>
           <div class="mt-4 flex items-center gap-3 rounded-lg px-3 py-2">
-            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-600 text-xs font-bold text-white">FM</div>
+            <div id="sidebar-avatar" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-600 text-xs font-bold text-white">FM</div>
             <div class="min-w-0">
-              <p class="truncate text-sm font-semibold text-slate-900">Franklin M.</p>
+              <p id="sidebar-username" class="truncate text-sm font-semibold text-slate-900">Franklin M.</p>
               <p class="truncate text-xs text-slate-500">Ingeniería - UEES</p>
             </div>
           </div>
@@ -134,7 +134,7 @@
             <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-600">
               <svg class="h-5 w-5 text-white" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.084 3.527 1.287 5.273c.271 1.113-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.312-1.96-1.425l1.287-5.273-4.084-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clip-rule="evenodd" /></svg>
             </div>
-            <p class="text-sm font-medium italic leading-relaxed text-green-900 md:text-base">“Gasta lo que te queda después de ahorrar, no ahorres lo que te queda después de gastar.”</p>
+            <p id="quote-text" class="text-sm font-medium italic leading-relaxed text-green-900 md:text-base">"Gasta lo que te queda después de ahorrar, no ahorres lo que te queda después de gastar."</p>
           </div>
 
           <!-- Semana actual + Recientes -->
@@ -212,7 +212,7 @@
                 <h2 class="text-base font-bold text-slate-900">Recientes</h2>
                 <button type="button" class="text-xs font-semibold text-green-700 transition hover:text-green-800" onclick="document.querySelector('.nav-link[data-tab=\'tab2\']')?.click()">Ver todas →</button>
               </div>
-              <ul class="divide-y divide-slate-100">
+              <ul id="dashboard-recent-list" class="divide-y divide-slate-100">
                 <li class="flex items-center gap-3 py-3 first:pt-0">
                   <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-red-500">
                     <svg class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3H15m-1.5-3H9m9-3v-3.375c0-.621-.504-1.125-1.125-1.125H18.75M3.375 9.75h17.25m-17.25 0A1.125 1.125 0 0 1 2.25 8.625v-3.75m19.5 0A1.125 1.125 0 0 0 20.25 8.625v3.75m-19.5 0h19.5" /></svg>
@@ -253,7 +253,7 @@
               <h2 class="text-base font-bold text-slate-900">Próximos pagos</h2>
               <button type="button" class="text-xs font-semibold text-green-700 transition hover:text-green-800" onclick="document.querySelector('.nav-link[data-tab=\'tab5\']')?.click()">Ver todos →</button>
             </div>
-            <div class="grid gap-4 sm:grid-cols-3">
+            <div id="dashboard-upcoming-list" class="grid gap-4 sm:grid-cols-3">
               <div class="flex items-center gap-4 rounded-xl border border-red-100 bg-red-50/50 p-4 shadow-sm">
                 <p class="w-14 shrink-0 text-center text-sm font-bold leading-tight text-red-500">10<br /><span class="text-2xs font-semibold uppercase">ABR</span></p>
                 <div class="min-w-0 flex-1">
@@ -322,20 +322,20 @@
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6 mb-6">
             <div class="rounded-xl bg-white p-4 shadow">
               <p class="text-xs text-slate-500">PRESUPUESTADO</p>
-              <div class="mt-2 text-2xl font-bold text-slate-900">$220</div>
+              <div id="budget-total" class="mt-2 text-2xl font-bold text-slate-900">$220</div>
             </div>
             <div class="rounded-xl bg-white p-4 shadow">
               <p class="text-xs text-slate-500">GASTADO</p>
-              <div class="mt-2 text-2xl font-bold text-red-500">$161</div>
+              <div id="budget-spent" class="mt-2 text-2xl font-bold text-red-500">$161</div>
             </div>
             <div class="rounded-xl bg-white p-4 shadow">
               <p class="text-xs text-slate-500">DISPONIBLE</p>
-              <div class="mt-2 text-2xl font-bold text-green-600">$59</div>
+              <div id="budget-available" class="mt-2 text-2xl font-bold text-green-600">$59</div>
             </div>
           </div>
 
           <div class="rounded-xl bg-white p-6 shadow">
-            <div class="space-y-6">
+            <div id="budget-categories-list" class="space-y-6">
               <!-- Alimentación -->
               <div>
                 <div class="flex justify-between items-center">
@@ -425,7 +425,7 @@
                 <p class="text-xs text-lime-900/80">50% necesidades · 30% deseos · 20% ahorro</p>
               </div>
             </div>
-            <div class="self-start rounded-full bg-lime-200 px-3 py-1 text-xs font-semibold text-lime-900 sm:self-center">$64 ahorrado este mes</div>
+            <div id="savings-method-badge" class="self-start rounded-full bg-lime-200 px-3 py-1 text-xs font-semibold text-lime-900 sm:self-center">$64 ahorrado este mes</div>
           </div>
 
           <div class="mt-6 grid gap-4 lg:grid-cols-3" id="savings-list"></div>
