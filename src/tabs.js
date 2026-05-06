@@ -111,7 +111,7 @@ function renderStaticMetadata() {
   if (dashboardExpenseNote) dashboardExpenseNote.textContent = `Gastos registrados · ${monthLabel}`;
   if (dashboardBalanceNote) dashboardBalanceNote.textContent = `Balance actual · ${monthLabel}`;
   if (sidebarAvatar) sidebarAvatar.textContent = profileInitials(profile.name);
-  if (sidebarUsername) sidebarUsername.textContent = profile.name || "Usuario";
+  if (sidebarUsername) sidebarUsername.textContent = profile.name || "";
   if (sidebarRemindersBadge) sidebarRemindersBadge.textContent = String(dueAttentionCount);
   if (transactionsSubtitle) transactionsSubtitle.textContent = `Historial de movimientos · ${monthLabel}`;
   if (budgetSubtitle) budgetSubtitle.textContent = `Límites de gasto · ${monthLabel}`;
@@ -287,7 +287,7 @@ function toDbTransactionType(uiType) {
 }
 
 function normalizeBudgetMap(map) {
-  const output = { ...DEFAULT_BUDGETS };
+  const output = {};
   Object.entries(map || {}).forEach(([name, value]) => {
     const limit = Number(value);
     if (name && Number.isFinite(limit) && limit > 0) {
@@ -353,10 +353,21 @@ async function hydrateFinanceState() {
   const financeAPI = window.electronAPI?.finance;
 
   if (!financeAPI) {
-    budgetState = { ...DEFAULT_BUDGETS };
-    savingsGoalsState = DEFAULT_SAVINGS_GOALS.map((goal, index) => normalizeSavingsGoal(goal, index));
-    remindersState = DEFAULT_REMINDERS.map(normalizeReminder);
-    profileState = { ...DEFAULT_PROFILE };
+    budgetState = {};
+    savingsGoalsState = [];
+    remindersState = [];
+    profileState = {
+      name: '',
+      email: '',
+      career: '',
+      income: 0,
+      savingsGoal: 0,
+      currency: 'USD',
+      notificationsEnabled: false,
+      alertBudget: false,
+      alertReminders: false,
+      alertMonthly: false,
+    };
     transacciones = [];
     return;
   }
@@ -367,13 +378,35 @@ async function hydrateFinanceState() {
     budgetState = normalizeBudgetMap(state?.budgets);
     savingsGoalsState = Array.isArray(state?.savings) ? state.savings.map((goal, index) => normalizeSavingsGoal(goal, index)) : [];
     remindersState = Array.isArray(state?.reminders) ? state.reminders.map(normalizeReminder) : [];
-    profileState = state?.profile ? { ...DEFAULT_PROFILE, ...state.profile } : { ...DEFAULT_PROFILE };
+    profileState = state?.profile ? { ...DEFAULT_PROFILE, ...state.profile } : {
+      name: '',
+      email: '',
+      career: '',
+      income: 0,
+      savingsGoal: 0,
+      currency: 'USD',
+      notificationsEnabled: false,
+      alertBudget: false,
+      alertReminders: false,
+      alertMonthly: false,
+    };
   } catch (error) {
     console.error('hydrateFinanceState error', error);
-    budgetState = { ...DEFAULT_BUDGETS };
-    savingsGoalsState = DEFAULT_SAVINGS_GOALS.map((goal, index) => normalizeSavingsGoal(goal, index));
-    remindersState = DEFAULT_REMINDERS.map(normalizeReminder);
-    profileState = { ...DEFAULT_PROFILE };
+    budgetState = {};
+    savingsGoalsState = [];
+    remindersState = [];
+    profileState = {
+      name: '',
+      email: '',
+      career: '',
+      income: 0,
+      savingsGoal: 0,
+      currency: 'USD',
+      notificationsEnabled: false,
+      alertBudget: false,
+      alertReminders: false,
+      alertMonthly: false,
+    };
     transacciones = [];
   }
 }
@@ -728,10 +761,6 @@ const SAVINGS_COLORS = {
 };
 
 function getSavingsGoals() {
-  if (savingsGoalsState.length === 0) {
-    return DEFAULT_SAVINGS_GOALS.map((goal, index) => normalizeSavingsGoal(goal, index));
-  }
-
   return savingsGoalsState.map((goal, index) => normalizeSavingsGoal(goal, index));
 }
 
@@ -1153,16 +1182,16 @@ function renderAhorros() {
 
 const PROFILE_STORAGE_KEY = "fintor:profile:v1";
 const DEFAULT_PROFILE = {
-  name: "Usuario FINTOR",
-  email: "usuario@fintor.local",
-  career: "Ingeniería - UEES",
-  income: 400,
-  savingsGoal: 120,
+  name: "",
+  email: "",
+  career: "",
+  income: 0,
+  savingsGoal: 0,
   currency: "USD",
-  notificationsEnabled: true,
-  alertBudget: true,
-  alertReminders: true,
-  alertMonthly: true,
+  notificationsEnabled: false,
+  alertBudget: false,
+  alertReminders: false,
+  alertMonthly: false,
 };
 
 function getProfileData() {
@@ -1182,12 +1211,12 @@ async function saveProfileDataToStorage(profile) {
 }
 
 function profileInitials(name) {
-  return String(name || "FM")
+  return String(name || "")
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
     .map(part => part[0]?.toUpperCase() || "")
-    .join("") || "FM";
+    .join("");
 }
 
 async function toggleProfileNotifications() {

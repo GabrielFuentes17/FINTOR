@@ -1,64 +1,17 @@
 const Database = require('better-sqlite3');
 const path = require('node:path');
 
-const DEFAULT_TRANSACTIONS = [
-  { type: 'egreso', description: 'Café biblioteca UEES', amount: 7, category: 'Comida', date: '2026-04-28' },
-  { type: 'egreso', description: 'Impresión proyecto final', amount: 8, category: 'Educación', date: '2026-04-26' },
-  { type: 'egreso', description: 'Bus casa ↔ universidad', amount: 10, category: 'Transporte', date: '2026-04-24' },
-  { type: 'egreso', description: 'Merienda entre clases', amount: 9, category: 'Comida', date: '2026-04-22' },
-  { type: 'egreso', description: 'Streaming (plan estudiante)', amount: 8, category: 'Entretenimiento', date: '2026-04-18' },
-  { type: 'egreso', description: 'Supermercado semanal', amount: 48, category: 'Comida', date: '2026-04-15' },
-  { type: 'egreso', description: 'Cuadernos y materiales', amount: 22, category: 'Educación', date: '2026-04-12' },
-  { type: 'egreso', description: 'Almuerzo comedor U', amount: 14, category: 'Comida', date: '2026-04-08' },
-  { type: 'egreso', description: 'Mensualidad UEES', amount: 105, category: 'Educación', date: '2026-04-06' },
-  { type: 'ingreso', description: 'Sueldo medio tiempo', amount: 400, category: 'Salario', date: '2026-04-04' },
-];
-
-const DEFAULT_BUDGETS = {
-  Comida: 80,
-  Transporte: 40,
-  Educación: 50,
-  Entretenimiento: 20,
-  Salud: 30,
-};
-
-const DEFAULT_SAVINGS_GOALS = [
-  { name: 'Nueva laptop', saved: 150, target: 800, note: 'Para clases y proyectos', color: 'green' },
-  { name: 'Fondo emergencias', saved: 100, target: 200, note: 'Reserva de seguridad', color: 'blue' },
-  { name: 'Viaje graduación', saved: 350, target: 500, note: 'Ahorro para el viaje', color: 'amber' },
-];
-
-const DEFAULT_REMINDERS = [
-  { name: 'Mensualidad UEES', description: 'Recurrente mensual', amount: 105, date: '2026-04-10', category: 'Mensualidad', days: -1, color: 'red', status: 'mañana' },
-  { name: 'Internet Claro 150MB', description: 'Recurrente mensual', amount: 27, date: '2026-04-15', category: 'Internet', days: 6, color: 'amber', status: 'próximo' },
-  { name: 'Transporte mensual', description: 'Recurrente mensual', amount: 15, date: '2026-04-20', category: 'Transporte', days: 11, color: 'blue', status: 'próximo' },
-  { name: 'Gimnasio', description: 'Recurrente mensual', amount: 20, date: '2026-04-30', category: 'Gimnasio', days: 21, color: 'gray', status: 'lejos' },
-];
-
-const DEFAULT_PROFILE = {
-  name: 'Usuario FINTOR',
-  email: 'usuario@fintor.local',
-  career: 'Ingeniería - UEES',
-  income: 400,
-  savingsGoal: 120,
+const EMPTY_PROFILE = {
+  name: '',
+  email: '',
+  career: '',
+  income: 0,
+  savingsGoal: 0,
   currency: 'USD',
-  notificationsEnabled: true,
-  alertBudget: true,
-  alertReminders: true,
-  alertMonthly: true,
-};
-
-const LEGACY_PROFILE_SEED = {
-  name: 'Franklin M.',
-  email: 'franklin.m@uees.edu.ec',
-  career: 'Ingeniería - UEES',
-  income: 400,
-  savingsGoal: 120,
-  currency: 'USD',
-  notificationsEnabled: true,
-  alertBudget: true,
-  alertReminders: true,
-  alertMonthly: true,
+  notificationsEnabled: false,
+  alertBudget: false,
+  alertReminders: false,
+  alertMonthly: false,
 };
 
 let database;
@@ -117,85 +70,15 @@ function getDatabase(app) {
         alert_reminders INTEGER NOT NULL DEFAULT 1,
         alert_monthly INTEGER NOT NULL DEFAULT 1
       );
-    `);
 
-    migrateLegacyProfileSeed(database);
-    seedIfEmpty(database);
+      CREATE TABLE IF NOT EXISTS app_meta (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+    `);
   }
 
   return database;
-}
-
-function seedIfEmpty(db) {
-  const seedTransactions = db.prepare('SELECT COUNT(*) AS count FROM transactions').get().count === 0;
-  const seedBudgets = db.prepare('SELECT COUNT(*) AS count FROM budgets').get().count === 0;
-  const seedSavings = db.prepare('SELECT COUNT(*) AS count FROM savings_goals').get().count === 0;
-  const seedReminders = db.prepare('SELECT COUNT(*) AS count FROM reminders').get().count === 0;
-  const seedProfile = db.prepare('SELECT COUNT(*) AS count FROM profile').get().count === 0;
-
-  const seed = db.transaction(() => {
-    if (seedTransactions) {
-      const insertTransaction = db.prepare(`
-        INSERT INTO transactions (type, description, amount, category, date)
-        VALUES (@type, @description, @amount, @category, @date)
-      `);
-      DEFAULT_TRANSACTIONS.forEach(transaction => insertTransaction.run(transaction));
-    }
-
-    if (seedBudgets) {
-      const insertBudget = db.prepare('INSERT INTO budgets (name, limit_amount) VALUES (?, ?)');
-      Object.entries(DEFAULT_BUDGETS).forEach(([name, limitAmount]) => insertBudget.run(name, limitAmount));
-    }
-
-    if (seedSavings) {
-      const insertSavings = db.prepare(`
-        INSERT INTO savings_goals (name, saved, target, note, color)
-        VALUES (@name, @saved, @target, @note, @color)
-      `);
-      DEFAULT_SAVINGS_GOALS.forEach(goal => insertSavings.run(goal));
-    }
-
-    if (seedReminders) {
-      const insertReminder = db.prepare(`
-        INSERT INTO reminders (name, description, amount, date, category, status, days, color)
-        VALUES (@name, @description, @amount, @date, @category, @status, @days, @color)
-      `);
-      DEFAULT_REMINDERS.forEach(reminder => insertReminder.run(reminder));
-    }
-
-    if (seedProfile) {
-      insertOrUpdateProfile(db, DEFAULT_PROFILE);
-    }
-  });
-
-  seed();
-}
-
-function migrateLegacyProfileSeed(db) {
-  const row = db.prepare(`
-    SELECT name, email, career, income, savings_goal, currency,
-           notifications_enabled, alert_budget, alert_reminders, alert_monthly
-    FROM profile
-    WHERE id = 1
-  `).get();
-
-  if (!row) return;
-
-  const isLegacySeed =
-    row.name === LEGACY_PROFILE_SEED.name &&
-    row.email === LEGACY_PROFILE_SEED.email &&
-    row.career === LEGACY_PROFILE_SEED.career &&
-    Number(row.income) === LEGACY_PROFILE_SEED.income &&
-    Number(row.savings_goal) === LEGACY_PROFILE_SEED.savingsGoal &&
-    row.currency === LEGACY_PROFILE_SEED.currency &&
-    Number(row.notifications_enabled) === 1 &&
-    Number(row.alert_budget) === 1 &&
-    Number(row.alert_reminders) === 1 &&
-    Number(row.alert_monthly) === 1;
-
-  if (isLegacySeed) {
-    insertOrUpdateProfile(db, DEFAULT_PROFILE);
-  }
 }
 
 function normalizeText(value) {
@@ -469,7 +352,7 @@ function getProfile(app) {
   `).get();
 
   if (!row) {
-    return { ...DEFAULT_PROFILE };
+    return { ...EMPTY_PROFILE };
   }
 
   return {
