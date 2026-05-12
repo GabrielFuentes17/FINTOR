@@ -129,6 +129,10 @@ function toggleTheme() {
   setTheme(currentTheme === 'dark' ? 'light' : 'dark');
 }
 
+function refreshPage() {
+  window.location.reload();
+}
+
 function renderStaticMetadata() {
   const profile = getProfileData();
   const monthLabel = formatMonthLabel();
@@ -383,7 +387,14 @@ function toDbTransactionType(uiType) {
 }
 
 function normalizeBudgetMap(map) {
-  return normalizeBudgetMapState(map);
+  const normalized = normalizeBudgetMapState(map);
+  const filtered = {};
+  Object.entries(normalized).forEach(([name, value]) => {
+    if (GASTO_CATS.has(name)) {
+      filtered[name] = value;
+    }
+  });
+  return filtered;
 }
 
 function normalizeSavingsGoal(goal, index = 0) {
@@ -484,6 +495,11 @@ const GASTO_CATS = new Set([
   'Salud',
   'Educación',
   'Entretenimiento',
+  'Cuidado personal',
+  'Limpieza del hogar',
+  'Ropa',
+  'Mascotas',
+  'Servicios financieros',
   'Otro',
 ]);
 const UI_EXPENSE_TYPE = 'gasto';
@@ -803,8 +819,13 @@ function renderTxList() {
   const lista = document.getElementById('tx-lista');
   if (!lista) return;
 
+  const tipoFiltrado = filtroActual === 'egreso' ? UI_EXPENSE_TYPE : filtroActual;
   const filtradas = transacciones.filter((tx) =>
-    filtroActual === 'todas' ? true : tx.tipo === filtroActual
+    tipoFiltrado === 'todas'
+      ? true
+      : tipoFiltrado === UI_EXPENSE_TYPE
+        ? tx.tipo === UI_EXPENSE_TYPE || tx.tipo === DB_EXPENSE_TYPE
+        : tx.tipo === tipoFiltrado
   );
 
   if (filtradas.length === 0) {
@@ -1077,12 +1098,22 @@ function openBudgetModal(name = '') {
   if (!overlay || !nameInput || !limitInput || !originalInput || !message || !title) return;
 
   const map = getBudgetMap();
-  const currentLimit = name ? map[name] : '';
+  const existingName = String(name || '').trim();
+  const currentLimit = existingName ? map[existingName] : '';
 
-  originalInput.value = name;
-  nameInput.value = name;
-  limitInput.value = name ? String(currentLimit ?? '') : '';
-  title.textContent = name ? 'Editar categoría' : 'Nueva categoría';
+  const options = ['<option value="">- Selecciona -</option>'];
+  Array.from(GASTO_CATS).forEach((category) => {
+    const selected = category === existingName ? ' selected' : '';
+    options.push(
+      `<option value="${escapeAttr(category)}"${selected}>${escapeHtml(category)}</option>`
+    );
+  });
+  nameInput.innerHTML = options.join('');
+
+  originalInput.value = existingName;
+  nameInput.value = existingName;
+  limitInput.value = existingName ? String(currentLimit ?? '') : '';
+  title.textContent = existingName ? 'Editar categoría' : 'Asignar categoría';
   message.textContent = '';
 
   overlay.classList.remove('hidden');
@@ -1116,7 +1147,12 @@ async function saveBudgetCategory() {
   const originalName = originalInput.value.trim();
 
   if (!rawName) {
-    message.textContent = 'Escribe un nombre de categoría.';
+    message.textContent = 'Selecciona una categoría.';
+    return;
+  }
+
+  if (!GASTO_CATS.has(rawName)) {
+    message.textContent = 'Solo puedes usar categorías de gasto existentes.';
     return;
   }
 
@@ -1200,7 +1236,7 @@ function renderPresupuesto() {
       </div>
       <button type="button" class="ml-4 inline-flex items-center gap-2 rounded-full bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700" onclick="openBudgetModal()">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"/></svg>
-        Nueva categoría
+        Asignar categoría
       </button>
     </div>
 
@@ -1526,7 +1562,7 @@ async function saveProfileData() {
   profile.alertMonthly = alertMonthlyInput.checked;
 
   await saveProfileDataToStorage(profile);
-  message.textContent = 'Perfil guardado correctamente.';
+  message.textContent = 'cambios guardados correctamente';
   message.classList.remove('text-red-600');
   message.classList.add('text-green-700');
   renderDashboard();

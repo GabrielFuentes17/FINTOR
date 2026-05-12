@@ -1,4 +1,5 @@
 const Database = require('better-sqlite3');
+const fs = require('node:fs');
 const path = require('node:path');
 const { calcularPresupuesto, normalizeBudgetSnapshot } = require('./finance/budget.js');
 
@@ -16,11 +17,13 @@ const EMPTY_PROFILE = {
 };
 
 let database;
+const userDatabases = new Map();
 const BUDGET_SNAPSHOT_META_KEY = 'budget_snapshot:v1';
+const FINANCE_DATABASE_NAME = 'fintor.db';
 
-function getDatabase(app) {
+function getLegacyDatabase(app) {
   if (!database) {
-    const databasePath = path.join(app.getPath('userData'), 'fintor.db');
+    const databasePath = path.join(app.getPath('userData'), FINANCE_DATABASE_NAME);
     database = new Database(databasePath);
     database.pragma('journal_mode = WAL');
     database.exec(`
@@ -83,6 +86,207 @@ function getDatabase(app) {
   return database;
 }
 
+function normalizeUsernameKey(username) {
+  return String(username || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '_')
+    .replace(/^_+|_+$/g, '') || 'default';
+}
+
+function getUserDatabasePath(app, username) {
+  return path.join(app.getPath('userData'), `fintor-${normalizeUsernameKey(username)}.db`);
+}
+
+function cloneDatabaseContent(sourceDb, targetDb) {
+  targetDb.exec('BEGIN');
+  try {
+    const profileRow = sourceDb.prepare('SELECT * FROM profile LIMIT 1').get();
+    if (profileRow) {
+      targetDb.prepare('DELETE FROM profile').run();
+      targetDb
+        .prepare(
+          `
+          INSERT INTO profile (
+            id, name, email, career, income, savings_goal, currency,
+            notifications_enabled, alert_budget, alert_reminders, alert_monthly
+          ) VALUES (
+            @id, @name, @email, @career, @income, @savings_goal, @currency,
+            @notifications_enabled, @alert_budget, @alert_reminders, @alert_monthly
+          )
+        `
+        )
+        .run(profileRow);
+    }
+
+    ['transactions', 'budgets', 'savings_goals', 'reminders'].forEach((table) => {
+      const rows = sourceDb.prepare(`SELECT * FROM ${table}`).all();
+      if (!rows.length) return;
+      targetDb.prepare(`DELETE FROM ${table}`).run();
+
+      const columns = Object.keys(rows[0]);
+      const placeholders = columns.map((column) => `@${column}`).join(', ');
+      const insertStatement = targetDb.prepare(
+        `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`
+      );
+      rows.forEach((row) => insertStatement.run(row));
+    });
+
+    const metaRows = sourceDb.prepare('SELECT key, value FROM app_meta').all();
+    if (metaRows.length) {
+      targetDb.prepare('DELETE FROM app_meta').run();
+      const insertMeta = targetDb.prepare(
+        'INSERT INTO app_meta (key, value) VALUES (@key, @value)'
+      );
+      metaRows.forEach((row) => insertMeta.run(row));
+    }
+
+    targetDb.exec('COMMIT');
+  } catch (error) {
+    targetDb.exec('ROLLBACK');
+    throw error;
+  }
+}
+
+function getDatabase(app, username = '') {
+  const cleanedUsername = normalizeText(username);
+  if (!cleanedUsername) {
+    return getLegacyDatabase(app);
+  }
+
+  const databasePath = getUserDatabasePath(app, cleanedUsername);
+  if (userDatabases.has(databasePath)) {
+    return userDatabases.get(databasePath);
+  }
+
+  if (!fs.existsSync(databasePath)) {
+    const legacyDb = getLegacyDatabase(app);
+    const legacyProfile = legacyDb.prepare('SELECT name FROM profile WHERE id = 1').get();
+    if (legacyProfile && normalizeText(legacyProfile.name) === cleanedUsername) {
+      const targetDb = new Database(databasePath);
+      targetDb.pragma('journal_mode = WAL');
+      targetDb.exec(`
+        CREATE TABLE IF NOT EXISTS transactions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          type TEXT NOT NULL,
+          description TEXT NOT NULL,
+          amount REAL NOT NULL,
+          category TEXT NOT NULL,
+          date TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS budgets (
+          name TEXT PRIMARY KEY,
+          limit_amount REAL NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS savings_goals (
+          name TEXT PRIMARY KEY,
+          saved REAL NOT NULL,
+          target REAL NOT NULL,
+          note TEXT NOT NULL DEFAULT '',
+          color TEXT NOT NULL DEFAULT 'green'
+        );
+
+        CREATE TABLE IF NOT EXISTS reminders (
+          name TEXT PRIMARY KEY,
+          description TEXT NOT NULL DEFAULT '',
+          amount REAL NOT NULL,
+          date TEXT NOT NULL,
+          category TEXT NOT NULL DEFAULT '',
+          status TEXT NOT NULL DEFAULT 'próximo',
+          days INTEGER NOT NULL DEFAULT 0,
+          color TEXT NOT NULL DEFAULT 'gray'
+        );
+
+        CREATE TABLE IF NOT EXISTS profile (
+          id INTEGER PRIMARY KEY CHECK (id = 1),
+          name TEXT NOT NULL,
+          email TEXT NOT NULL,
+          career TEXT NOT NULL,
+          income REAL NOT NULL,
+          savings_goal REAL NOT NULL,
+          currency TEXT NOT NULL,
+          notifications_enabled INTEGER NOT NULL DEFAULT 1,
+          alert_budget INTEGER NOT NULL DEFAULT 1,
+          alert_reminders INTEGER NOT NULL DEFAULT 1,
+          alert_monthly INTEGER NOT NULL DEFAULT 1
+        );
+
+        CREATE TABLE IF NOT EXISTS app_meta (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL
+        );
+      `);
+      cloneDatabaseContent(legacyDb, targetDb);
+      userDatabases.set(databasePath, targetDb);
+      return targetDb;
+    }
+  }
+
+  const userDb = new Database(databasePath);
+  userDb.pragma('journal_mode = WAL');
+  userDb.exec(`
+    CREATE TABLE IF NOT EXISTS transactions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      type TEXT NOT NULL,
+      description TEXT NOT NULL,
+      amount REAL NOT NULL,
+      category TEXT NOT NULL,
+      date TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS budgets (
+      name TEXT PRIMARY KEY,
+      limit_amount REAL NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS savings_goals (
+      name TEXT PRIMARY KEY,
+      saved REAL NOT NULL,
+      target REAL NOT NULL,
+      note TEXT NOT NULL DEFAULT '',
+      color TEXT NOT NULL DEFAULT 'green'
+    );
+
+    CREATE TABLE IF NOT EXISTS reminders (
+      name TEXT PRIMARY KEY,
+      description TEXT NOT NULL DEFAULT '',
+      amount REAL NOT NULL,
+      date TEXT NOT NULL,
+      category TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'próximo',
+      days INTEGER NOT NULL DEFAULT 0,
+      color TEXT NOT NULL DEFAULT 'gray'
+    );
+
+    CREATE TABLE IF NOT EXISTS profile (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      career TEXT NOT NULL,
+      income REAL NOT NULL,
+      savings_goal REAL NOT NULL,
+      currency TEXT NOT NULL,
+      notifications_enabled INTEGER NOT NULL DEFAULT 1,
+      alert_budget INTEGER NOT NULL DEFAULT 1,
+      alert_reminders INTEGER NOT NULL DEFAULT 1,
+      alert_monthly INTEGER NOT NULL DEFAULT 1
+    );
+
+    CREATE TABLE IF NOT EXISTS app_meta (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+  `);
+  userDatabases.set(databasePath, userDb);
+  return userDb;
+}
+
 function normalizeText(value) {
   return String(value ?? '').trim();
 }
@@ -92,8 +296,8 @@ function normalizeNumber(value, fallback = 0) {
   return Number.isFinite(number) ? number : fallback;
 }
 
-function listTransactions(app) {
-  const db = getDatabase(app);
+function listTransactions(app, username = '') {
+  const db = getDatabase(app, username);
   return db
     .prepare(
       `
@@ -105,8 +309,8 @@ function listTransactions(app) {
     .all();
 }
 
-function createTransaction(app, payload) {
-  const db = getDatabase(app);
+function createTransaction(app, payload, username = '') {
+  const db = getDatabase(app, username);
   const transaction = {
     type: normalizeText(payload?.type),
     description: normalizeText(payload?.description),
@@ -127,8 +331,8 @@ function createTransaction(app, payload) {
   return { id: result.lastInsertRowid, ...transaction };
 }
 
-function updateTransaction(app, id, payload) {
-  const db = getDatabase(app);
+function updateTransaction(app, id, payload, username = '') {
+  const db = getDatabase(app, username);
   const transaction = {
     id: normalizeNumber(id),
     type: normalizeText(payload?.type),
@@ -154,15 +358,15 @@ function updateTransaction(app, id, payload) {
   return transaction;
 }
 
-function deleteTransaction(app, id) {
-  const db = getDatabase(app);
+function deleteTransaction(app, id, username = '') {
+  const db = getDatabase(app, username);
   const numericId = normalizeNumber(id);
   db.prepare('DELETE FROM transactions WHERE id = ?').run(numericId);
   return true;
 }
 
-function listBudgets(app) {
-  const db = getDatabase(app);
+function listBudgets(app, username = '') {
+  const db = getDatabase(app, username);
   const rows = db
     .prepare('SELECT name, limit_amount FROM budgets ORDER BY name COLLATE NOCASE')
     .all();
@@ -172,8 +376,8 @@ function listBudgets(app) {
   }, {});
 }
 
-function replaceBudgets(app, map) {
-  const db = getDatabase(app);
+function replaceBudgets(app, map, username = '') {
+  const db = getDatabase(app, username);
   const entries = Object.entries(map || {})
     .map(([name, limitAmount]) => [normalizeText(name), normalizeNumber(limitAmount)])
     .filter(([name, limitAmount]) => name && limitAmount > 0);
@@ -185,16 +389,16 @@ function replaceBudgets(app, map) {
   });
 
   transaction();
-  return listBudgets(app);
+  return listBudgets(app, username);
 }
 
-function upsertBudget(app, payload) {
-  const db = getDatabase(app);
+function upsertBudget(app, payload, username = '') {
+  const db = getDatabase(app, username);
   const name = normalizeText(payload?.name);
   const limitAmount = normalizeNumber(payload?.limitAmount);
 
   if (!name || limitAmount <= 0) {
-    return listBudgets(app);
+    return listBudgets(app, username);
   }
 
   db.prepare(
@@ -205,23 +409,23 @@ function upsertBudget(app, payload) {
   `
   ).run(name, limitAmount);
 
-  return listBudgets(app);
+  return listBudgets(app, username);
 }
 
-function deleteBudget(app, name) {
-  const db = getDatabase(app);
+function deleteBudget(app, name, username = '') {
+  const db = getDatabase(app, username);
   db.prepare('DELETE FROM budgets WHERE name = ?').run(normalizeText(name));
-  return listBudgets(app);
+  return listBudgets(app, username);
 }
 
-function getAppMetaValue(app, key) {
-  const db = getDatabase(app);
+function getAppMetaValue(app, key, username = '') {
+  const db = getDatabase(app, username);
   const row = db.prepare('SELECT value FROM app_meta WHERE key = ?').get(normalizeText(key));
   return row ? row.value : null;
 }
 
-function setAppMetaValue(app, key, value) {
-  const db = getDatabase(app);
+function setAppMetaValue(app, key, value, username = '') {
+  const db = getDatabase(app, username);
   const normalizedKey = normalizeText(key);
   const normalizedValue = String(value ?? '');
 
@@ -240,8 +444,8 @@ function setAppMetaValue(app, key, value) {
   return normalizedValue;
 }
 
-function getBudgetSnapshot(app) {
-  const rawValue = getAppMetaValue(app, BUDGET_SNAPSHOT_META_KEY);
+function getBudgetSnapshot(app, username = '') {
+  const rawValue = getAppMetaValue(app, BUDGET_SNAPSHOT_META_KEY, username);
 
   if (rawValue) {
     try {
@@ -251,17 +455,17 @@ function getBudgetSnapshot(app) {
     }
   }
 
-  return calcularPresupuesto(getProfile(app).income);
+  return calcularPresupuesto(getProfile(app, username).income);
 }
 
-function saveBudgetSnapshot(app, payload) {
+function saveBudgetSnapshot(app, payload, username = '') {
   const snapshot = normalizeBudgetSnapshot(payload);
-  setAppMetaValue(app, BUDGET_SNAPSHOT_META_KEY, JSON.stringify(snapshot));
+  setAppMetaValue(app, BUDGET_SNAPSHOT_META_KEY, JSON.stringify(snapshot), username);
   return snapshot;
 }
 
-function listSavingsGoals(app) {
-  const db = getDatabase(app);
+function listSavingsGoals(app, username = '') {
+  const db = getDatabase(app, username);
   return db
     .prepare(
       `
@@ -273,8 +477,8 @@ function listSavingsGoals(app) {
     .all();
 }
 
-function replaceSavingsGoals(app, goals) {
-  const db = getDatabase(app);
+function replaceSavingsGoals(app, goals, username = '') {
+  const db = getDatabase(app, username);
   const entries = Array.isArray(goals) ? goals : [];
 
   const transaction = db.transaction(() => {
@@ -297,13 +501,13 @@ function replaceSavingsGoals(app, goals) {
   });
 
   transaction();
-  return listSavingsGoals(app);
+  return listSavingsGoals(app, username);
 }
 
-function upsertSavingsGoal(app, payload) {
-  const db = getDatabase(app);
+function upsertSavingsGoal(app, payload, username = '') {
+  const db = getDatabase(app, username);
   const name = normalizeText(payload?.name);
-  if (!name) return listSavingsGoals(app);
+  if (!name) return listSavingsGoals(app, username);
 
   db.prepare(
     `
@@ -323,17 +527,17 @@ function upsertSavingsGoal(app, payload) {
     normalizeText(payload?.color) || 'green'
   );
 
-  return listSavingsGoals(app);
+  return listSavingsGoals(app, username);
 }
 
-function deleteSavingsGoal(app, name) {
-  const db = getDatabase(app);
+function deleteSavingsGoal(app, name, username = '') {
+  const db = getDatabase(app, username);
   db.prepare('DELETE FROM savings_goals WHERE name = ?').run(normalizeText(name));
-  return listSavingsGoals(app);
+  return listSavingsGoals(app, username);
 }
 
-function listReminders(app) {
-  const db = getDatabase(app);
+function listReminders(app, username = '') {
+  const db = getDatabase(app, username);
   return db
     .prepare(
       `
@@ -345,8 +549,8 @@ function listReminders(app) {
     .all();
 }
 
-function replaceReminders(app, reminders) {
-  const db = getDatabase(app);
+function replaceReminders(app, reminders, username = '') {
+  const db = getDatabase(app, username);
   const entries = Array.isArray(reminders) ? reminders : [];
 
   const transaction = db.transaction(() => {
@@ -372,13 +576,13 @@ function replaceReminders(app, reminders) {
   });
 
   transaction();
-  return listReminders(app);
+  return listReminders(app, username);
 }
 
-function upsertReminder(app, payload) {
-  const db = getDatabase(app);
+function upsertReminder(app, payload, username = '') {
+  const db = getDatabase(app, username);
   const name = normalizeText(payload?.name);
-  if (!name) return listReminders(app);
+  if (!name) return listReminders(app, username);
 
   db.prepare(
     `
@@ -404,17 +608,17 @@ function upsertReminder(app, payload) {
     normalizeText(payload?.color) || 'gray'
   );
 
-  return listReminders(app);
+  return listReminders(app, username);
 }
 
-function deleteReminder(app, name) {
-  const db = getDatabase(app);
+function deleteReminder(app, name, username = '') {
+  const db = getDatabase(app, username);
   db.prepare('DELETE FROM reminders WHERE name = ?').run(normalizeText(name));
-  return listReminders(app);
+  return listReminders(app, username);
 }
 
-function getProfile(app) {
-  const db = getDatabase(app);
+function getProfile(app, username = '') {
+  const db = getDatabase(app, username);
   const row = db
     .prepare(
       `
@@ -483,20 +687,20 @@ function insertOrUpdateProfile(db, profile) {
   });
 }
 
-function saveProfile(app, profile) {
-  const db = getDatabase(app);
+function saveProfile(app, profile, username = '') {
+  const db = getDatabase(app, username);
   insertOrUpdateProfile(db, profile);
-  return getProfile(app);
+  return getProfile(app, username);
 }
 
-function getFinanceState(app) {
+function getFinanceState(app, username = '') {
   return {
-    transactions: listTransactions(app),
-    budgets: listBudgets(app),
-    savings: listSavingsGoals(app),
-    reminders: listReminders(app),
-    profile: getProfile(app),
-    budgetSnapshot: getBudgetSnapshot(app),
+    transactions: listTransactions(app, username),
+    budgets: listBudgets(app, username),
+    savings: listSavingsGoals(app, username),
+    reminders: listReminders(app, username),
+    profile: getProfile(app, username),
+    budgetSnapshot: getBudgetSnapshot(app, username),
   };
 }
 

@@ -1,6 +1,12 @@
 const { app, BrowserWindow, ipcMain, Notification } = require('electron');
 const path = require('node:path');
 
+if (app.isPackaged) {
+  app.setPath('userData', path.join(app.getPath('appData'), 'fintor-production'));
+} else {
+  app.setPath('userData', path.join(app.getPath('appData'), 'fintor-development'));
+}
+
 // Rutas adaptadas a la nueva estructura src/
 const auth = require('./auth/auth.js');
 const financeDb = require('./db.js');
@@ -87,8 +93,8 @@ ipcMain.handle('auth:login', (_event, payload) => {
   const result = auth.authenticateUser(app, payload);
   if (result.ok) {
     activeUsername = result.username;
-    const p = financeDb.getProfile(app);
-    financeDb.saveProfile(app, { ...p, name: result.username });
+    const p = financeDb.getProfile(app, activeUsername);
+    financeDb.saveProfile(app, { ...p, name: result.username }, activeUsername);
     setImmediate(() => createMainWindow());
   }
   return result;
@@ -107,41 +113,54 @@ ipcMain.handle('auth:clear-remember', () => auth.clearRememberedUsername(app));
 ipcMain.handle('auth:current-user', () => activeUsername ?? '');
 
 // Finanzas
-ipcMain.handle('finance:get-state', () => financeDb.getFinanceState(app));
+ipcMain.handle('finance:get-state', () => financeDb.getFinanceState(app, activeUsername));
 ipcMain.handle('finance:transactions:create', (_event, payload) =>
-  financeDb.createTransaction(app, payload)
+  financeDb.createTransaction(app, payload, activeUsername)
 );
 ipcMain.handle('finance:transactions:update', (_event, payload) =>
-  financeDb.updateTransaction(app, payload.id, payload.data)
+  financeDb.updateTransaction(app, payload.id, payload.data, activeUsername)
 );
-ipcMain.handle('finance:transactions:delete', (_event, id) => financeDb.deleteTransaction(app, id));
-ipcMain.handle('finance:budgets:set', (_event, payload) => financeDb.replaceBudgets(app, payload));
-ipcMain.handle('finance:budgets:upsert', (_event, payload) => financeDb.upsertBudget(app, payload));
-ipcMain.handle('finance:budgets:delete', (_event, name) => financeDb.deleteBudget(app, name));
-ipcMain.handle('finance:budget:snapshot:get', () => financeDb.getBudgetSnapshot(app));
+ipcMain.handle('finance:transactions:delete', (_event, id) =>
+  financeDb.deleteTransaction(app, id, activeUsername)
+);
+ipcMain.handle('finance:budgets:set', (_event, payload) =>
+  financeDb.replaceBudgets(app, payload, activeUsername)
+);
+ipcMain.handle('finance:budgets:upsert', (_event, payload) =>
+  financeDb.upsertBudget(app, payload, activeUsername)
+);
+ipcMain.handle('finance:budgets:delete', (_event, name) => financeDb.deleteBudget(app, name, activeUsername));
+ipcMain.handle('finance:budget:snapshot:get', () => financeDb.getBudgetSnapshot(app, activeUsername));
 ipcMain.handle('finance:budget:snapshot:save', (_event, payload) =>
-  financeDb.saveBudgetSnapshot(app, payload)
+  financeDb.saveBudgetSnapshot(app, payload, activeUsername)
 );
 ipcMain.handle('finance:savings:set', (_event, payload) =>
-  financeDb.replaceSavingsGoals(app, payload)
+  financeDb.replaceSavingsGoals(app, payload, activeUsername)
 );
 ipcMain.handle('finance:savings:upsert', (_event, payload) =>
-  financeDb.upsertSavingsGoal(app, payload)
+  financeDb.upsertSavingsGoal(app, payload, activeUsername)
 );
-ipcMain.handle('finance:savings:delete', (_event, name) => financeDb.deleteSavingsGoal(app, name));
+ipcMain.handle('finance:savings:delete', (_event, name) =>
+  financeDb.deleteSavingsGoal(app, name, activeUsername)
+);
 ipcMain.handle('finance:reminders:set', (_event, payload) =>
-  financeDb.replaceReminders(app, payload)
+  financeDb.replaceReminders(app, payload, activeUsername)
 );
 ipcMain.handle('finance:reminders:upsert', (_event, payload) =>
-  financeDb.upsertReminder(app, payload)
+  financeDb.upsertReminder(app, payload, activeUsername)
 );
-ipcMain.handle('finance:reminders:delete', (_event, name) => financeDb.deleteReminder(app, name));
-ipcMain.handle('finance:profile:get', () => financeDb.getProfile(app));
-ipcMain.handle('finance:profile:save', (_event, payload) => financeDb.saveProfile(app, payload));
+ipcMain.handle('finance:reminders:delete', (_event, name) =>
+  financeDb.deleteReminder(app, name, activeUsername)
+);
+ipcMain.handle('finance:profile:get', () => financeDb.getProfile(app, activeUsername));
+ipcMain.handle('finance:profile:save', (_event, payload) =>
+  financeDb.saveProfile(app, payload, activeUsername)
+);
 
 ipcMain.on('auth:logout', () => {
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
   mainWindow = null;
+  activeUsername = null;
   createLoginWindow();
 });
 
