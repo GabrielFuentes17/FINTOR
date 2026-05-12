@@ -1,5 +1,5 @@
 const Database = require('better-sqlite3');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 

@@ -21,7 +21,7 @@
   "pnpm": {
     "onlyBuiltDependencies": [
       "@parcel/watcher",
-      "bcrypt",
+      
       "better-sqlite3",
       "electron",
       "electron-winstaller"
@@ -29,7 +29,7 @@
   },
   "dependencies": {
     "@tailwindcss/cli": "^4.2.2",
-    "bcrypt": "^6.0.0",
+    "bcryptjs": "^2.4.3",
     "better-sqlite3": "^12.9.0",
     "cookie-parser": "^1.4.7",
     "dotenv": "^17.4.2",
