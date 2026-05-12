@@ -32,6 +32,9 @@ importers:
       flowbite:
         specifier: ^4.0.1
         version: 4.0.1
+      nodemailer:
+        specifier: ^8.0.7
+        version: 8.0.7
       tailwindcss:
         specifier: ^4.2.2
         version: 4.2.2
@@ -2457,6 +2460,10 @@ packages:
 
   node-releases@2.0.37:
     resolution: {integrity: sha512-1h5gKZCF+pO/o3Iqt5Jp7wc9rH3eJJ0+nh/CIoiRwjRxde/hAHyLPXYN4V3CqKAbiZPSeJFSWHmJsbkicta0Eg==}
+
+  nodemailer@8.0.7:
+    resolution: {integrity: sha512-pkjE4mkBzQjdJT4/UmlKl3pX0rC9fZmjh7c6C9o7lv66Ac6w9WCnzPzhbPNxwZAzlF4mdq4CSWB5+FbK6FWCow==}
+    engines: {node: '>=6.0.0'}
 
   nopt@6.0.0:
     resolution: {integrity: sha512-ZwLpbTgdhuZUnZzjd7nb1ZV+4DoiC6/sfiVKok72ym/4Tlf+DFdlHYmT2JPmcNNWV6Pi3SDf1kT+A4r9RTuT9g==}
@@ -6317,6 +6324,8 @@ snapshots:
       which: 6.0.1
 
   node-releases@2.0.37: {}
+
+  nodemailer@8.0.7: {}
 
   nopt@6.0.0:
     dependencies:

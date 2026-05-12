@@ -1,7 +1,11 @@
 const Database = require('better-sqlite3');
 const bcrypt = require('bcryptjs');
+const dotenv = require('dotenv');
+const nodemailer = require('nodemailer');
 const path = require('node:path');
 const crypto = require('node:crypto');
+
+dotenv.config();
 
 let database;
 
@@ -40,6 +44,16 @@ function normalizeUsername(username) {
   return String(username || '').trim();
 }
 
+function normalizeEmail(email) {
+  return String(email || '')
+    .trim()
+    .toLowerCase();
+}
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmail(email));
+}
+
 function normalizePassword(password) {
   return String(password || '');
 }
@@ -54,6 +68,57 @@ function validatePasswordStrength(password) {
 
 function generateRecoveryCode() {
   return crypto.randomBytes(4).toString('hex').toUpperCase();
+}
+
+function getMailer() {
+  const host = normalizeUsername(process.env.SMTP_HOST);
+  const port = Number(process.env.SMTP_PORT || 587);
+  const user = normalizeUsername(process.env.SMTP_USER);
+  const pass = normalizeUsername(process.env.SMTP_PASS);
+  const from = normalizeUsername(process.env.SMTP_FROM) || user;
+
+  if (!host || !port || !user || !pass || !from) {
+    return null;
+  }
+
+  return {
+    from,
+    transporter: nodemailer.createTransport({
+      host,
+      port,
+      secure: String(process.env.SMTP_SECURE || '').toLowerCase() === 'true' || port === 465,
+      auth: {
+        user,
+        pass,
+      },
+    }),
+  };
+}
+
+async function sendRecoveryCodeEmail(email, recoveryCode, contextLabel = 'FINTOR') {
+  const mailer = getMailer();
+  if (!mailer) {
+    return {
+      ok: false,
+      message:
+        'Configura SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS y SMTP_FROM para enviar correos de recuperacion.',
+    };
+  }
+
+  await mailer.transporter.sendMail({
+    from: mailer.from,
+    to: email,
+    subject: `${contextLabel} - Codigo de recuperacion`,
+    text: [
+      'Hola,',
+      '',
+      `Tu codigo de recuperacion es: ${recoveryCode}`,
+      '',
+      'Si no solicitaste este codigo, puedes ignorar este correo.',
+    ].join('\n'),
+  });
+
+  return { ok: true };
 }
 
 function saveSetting(app, key, value) {
@@ -99,11 +164,15 @@ function clearRememberedUsername(app) {
 }
 
 function registerUser(app, payload) {
-  const username = normalizeUsername(payload?.username);
+  const email = normalizeEmail(payload?.email ?? payload?.username);
   const password = normalizePassword(payload?.password);
 
-  if (!username || !password) {
-    return { ok: false, message: 'Debes escribir usuario y contrasena.' };
+  if (!email || !password) {
+    return { ok: false, message: 'Debes escribir correo y contrasena.' };
+  }
+
+  if (!isValidEmail(email)) {
+    return { ok: false, message: 'Debes escribir un correo valido.' };
   }
 
   const passwordValidation = validatePasswordStrength(password);
@@ -112,68 +181,66 @@ function registerUser(app, payload) {
   }
 
   const db = getDatabase(app);
-  const existingUser = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
+  const existingUser = db.prepare('SELECT id FROM users WHERE username = ?').get(email);
 
   if (existingUser) {
-    return { ok: false, message: 'Ese usuario ya existe.' };
+    return { ok: false, message: 'Ese correo ya existe.' };
   }
 
   const passwordHash = bcrypt.hashSync(password, 10);
-  const recoveryCode = generateRecoveryCode();
-  const recoveryCodeHash = bcrypt.hashSync(recoveryCode, 10);
 
   db.prepare(
     `
     INSERT INTO users (username, password_hash, recovery_code_hash)
     VALUES (?, ?, ?)
   `
-  ).run(username, passwordHash, recoveryCodeHash);
+  ).run(email, passwordHash, null);
 
-  return { ok: true, username, recoveryCode };
+  return { ok: true, username: email };
 }
 
 function authenticateUser(app, payload) {
-  const username = normalizeUsername(payload?.username);
+  const email = normalizeEmail(payload?.email ?? payload?.username);
   const password = normalizePassword(payload?.password);
   const rememberMe = Boolean(payload?.rememberMe);
 
-  if (!username || !password) {
-    return { ok: false, message: 'Debes escribir usuario y contraseña.' };
+  if (!email || !password) {
+    return { ok: false, message: 'Debes escribir correo y contraseña.' };
   }
 
   const db = getDatabase(app);
   const existingUser = db
     .prepare('SELECT password_hash FROM users WHERE username = ?')
-    .get(username);
+    .get(email);
 
   if (!existingUser) {
-    return { ok: false, message: 'Usuario no encontrado. Debes registrarte primero.' };
+    return { ok: false, message: 'Correo no encontrado. Debes registrarte primero.' };
   }
 
   const passwordMatches = bcrypt.compareSync(password, existingUser.password_hash);
 
   if (!passwordMatches) {
-    return { ok: false, message: 'La contrasena no coincide con ese usuario.' };
+    return { ok: false, message: 'La contrasena no coincide con ese correo.' };
   }
 
-  db.prepare('UPDATE users SET updated_at = CURRENT_TIMESTAMP WHERE username = ?').run(username);
+  db.prepare('UPDATE users SET updated_at = CURRENT_TIMESTAMP WHERE username = ?').run(email);
 
   if (rememberMe) {
-    setRememberedUsername(app, username);
+    setRememberedUsername(app, email);
   } else {
     clearRememberedUsername(app);
   }
 
-  return { ok: true, username };
+  return { ok: true, username: email };
 }
 
 function resetPassword(app, payload) {
-  const username = normalizeUsername(payload?.username);
+  const email = normalizeEmail(payload?.email ?? payload?.username);
   const currentPassword = normalizePassword(payload?.currentPassword);
   const newPassword = normalizePassword(payload?.newPassword);
 
-  if (!username || !currentPassword || !newPassword) {
-    return { ok: false, message: 'Debes escribir usuario, contrasena actual y nueva contrasena.' };
+  if (!email || !currentPassword || !newPassword) {
+    return { ok: false, message: 'Debes escribir correo, contrasena actual y nueva contrasena.' };
   }
 
   const passwordValidation = validatePasswordStrength(newPassword);
@@ -184,10 +251,10 @@ function resetPassword(app, payload) {
   const db = getDatabase(app);
   const existingUser = db
     .prepare('SELECT id, password_hash FROM users WHERE username = ?')
-    .get(username);
+    .get(email);
 
   if (!existingUser) {
-    return { ok: false, message: 'No existe un usuario guardado con ese nombre.' };
+    return { ok: false, message: 'No existe una cuenta guardada con ese correo.' };
   }
 
   const currentMatches = bcrypt.compareSync(currentPassword, existingUser.password_hash);
@@ -202,22 +269,22 @@ function resetPassword(app, payload) {
     SET password_hash = ?, updated_at = CURRENT_TIMESTAMP
     WHERE username = ?
   `
-  ).run(passwordHash, username);
+  ).run(passwordHash, email);
 
-  return { ok: true, username };
+  return { ok: true, username: email };
 }
 
 function resetPasswordWithRecoveryCode(app, payload) {
-  const username = normalizeUsername(payload?.username);
+  const email = normalizeEmail(payload?.email ?? payload?.username);
   const recoveryCode = String(payload?.recoveryCode || '')
     .trim()
     .toUpperCase();
   const newPassword = normalizePassword(payload?.newPassword);
 
-  if (!username || !recoveryCode || !newPassword) {
+  if (!email || !recoveryCode || !newPassword) {
     return {
       ok: false,
-      message: 'Debes escribir usuario, codigo de recuperacion y nueva contrasena.',
+      message: 'Debes escribir correo, codigo de recuperacion y nueva contrasena.',
     };
   }
 
@@ -229,14 +296,14 @@ function resetPasswordWithRecoveryCode(app, payload) {
   const db = getDatabase(app);
   const existingUser = db
     .prepare('SELECT id, recovery_code_hash FROM users WHERE username = ?')
-    .get(username);
+    .get(email);
 
   if (!existingUser) {
-    return { ok: false, message: 'No existe un usuario guardado con ese nombre.' };
+    return { ok: false, message: 'No existe una cuenta guardada con ese correo.' };
   }
 
   if (!existingUser.recovery_code_hash) {
-    return { ok: false, message: 'Este usuario no tiene codigo de recuperacion configurado.' };
+    return { ok: false, message: 'Esta cuenta no tiene codigo de recuperacion configurado.' };
   }
 
   const recoveryCodeMatches = bcrypt.compareSync(recoveryCode, existingUser.recovery_code_hash);
@@ -248,19 +315,72 @@ function resetPasswordWithRecoveryCode(app, payload) {
   const nextRecoveryCode = generateRecoveryCode();
   const nextRecoveryCodeHash = bcrypt.hashSync(nextRecoveryCode, 10);
 
+  return sendRecoveryCodeEmail(email, nextRecoveryCode)
+    .then((mailResult) => {
+      if (!mailResult.ok) {
+        return mailResult;
+      }
+
+      db.prepare(
+        `
+        UPDATE users
+        SET password_hash = ?, recovery_code_hash = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE username = ?
+      `
+      ).run(passwordHash, nextRecoveryCodeHash, email);
+
+      return {
+        ok: true,
+        username: email,
+        message: 'Contrasena actualizada. Te enviamos un nuevo codigo al correo.',
+      };
+    })
+    .catch((error) => {
+      console.error('resetPasswordWithRecoveryCode send email error', error);
+      return { ok: false, message: 'No se pudo enviar el correo de recuperacion.' };
+    });
+}
+
+async function requestRecoveryCode(app, payload) {
+  const email = normalizeEmail(payload?.email ?? payload?.username);
+
+  if (!email) {
+    return { ok: false, message: 'Debes escribir un correo valido.' };
+  }
+
+  if (!isValidEmail(email)) {
+    return { ok: false, message: 'Debes escribir un correo valido.' };
+  }
+
+  const db = getDatabase(app);
+  const existingUser = db
+    .prepare('SELECT id FROM users WHERE username = ?')
+    .get(email);
+
+  if (!existingUser) {
+    return { ok: false, message: 'No existe una cuenta guardada con ese correo.' };
+  }
+
+  const recoveryCode = generateRecoveryCode();
+  const recoveryCodeHash = bcrypt.hashSync(recoveryCode, 10);
+  const mailResult = await sendRecoveryCodeEmail(email, recoveryCode);
+
+  if (!mailResult.ok) {
+    return mailResult;
+  }
+
   db.prepare(
     `
     UPDATE users
-    SET password_hash = ?, recovery_code_hash = ?, updated_at = CURRENT_TIMESTAMP
+    SET recovery_code_hash = ?, updated_at = CURRENT_TIMESTAMP
     WHERE username = ?
   `
-  ).run(passwordHash, nextRecoveryCodeHash, username);
+  ).run(recoveryCodeHash, email);
 
   return {
     ok: true,
-    username,
-    nextRecoveryCode,
-    message: 'Contrasena actualizada con codigo de recuperacion.',
+    username: email,
+    message: 'Te enviamos un codigo de recuperacion al correo.',
   };
 }
 
@@ -268,6 +388,7 @@ module.exports = {
   authenticateUser,
   registerUser,
   getRememberedUsername,
+  requestRecoveryCode,
   resetPassword,
   resetPasswordWithRecoveryCode,
   clearRememberedUsername,

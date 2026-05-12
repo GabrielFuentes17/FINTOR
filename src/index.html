@@ -371,13 +371,13 @@
               id="sidebar-avatar"
               class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-600 text-xs font-bold text-white"
             >
-              FM
+              P
             </div>
             <div class="min-w-0">
               <p id="sidebar-username" class="truncate text-sm font-semibold text-slate-900">
-                Franklin M.
+                Perfil
               </p>
-              <p class="truncate text-xs text-slate-500">Ingeniería - UEES</p>
+              <p id="sidebar-career" class="truncate text-xs text-slate-500">Ingeniería - UEES</p>
             </div>
           </div>
         </div>
@@ -603,6 +603,14 @@
                 onclick="filtrar('gasto', this)"
               >
                 Gastos
+              </button>
+              <button
+                type="button"
+                class="filtro-btn rounded-lg border border-transparent bg-slate-100 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-200/80"
+                data-filtro="ahorro"
+                onclick="filtrar('ahorro', this)"
+              >
+                Ahorro
               </button>
             </div>
           </section>
@@ -876,9 +884,11 @@
 
           <div class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-              <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Ingresos</p>
+              <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Ingresos del mes</p>
               <p id="report-income" class="mt-2 text-2xl font-bold text-green-700">$0</p>
-              <p class="mt-1 text-xs text-slate-500">Últimos 4 meses</p>
+              <p id="report-income-breakdown" class="mt-1 text-xs text-slate-500">
+                Base mensual + otros ingresos del mes
+              </p>
             </div>
             <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
               <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Gastos</p>
@@ -886,14 +896,14 @@
               <p class="mt-1 text-xs text-slate-500">Últimos 4 meses</p>
             </div>
             <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-              <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Balance</p>
+              <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Balance del mes</p>
               <p id="report-balance" class="mt-2 text-2xl font-bold text-slate-900">$0</p>
-              <p class="mt-1 text-xs text-slate-500">Ingresos - gastos</p>
+              <p class="mt-1 text-xs text-slate-500">Ingresos del mes - gastos del mes</p>
             </div>
             <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
               <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Ahorro</p>
               <p id="report-savings-rate" class="mt-2 text-2xl font-bold text-amber-500">0%</p>
-              <p class="mt-1 text-xs text-slate-500">Del ingreso total</p>
+              <p class="mt-1 text-xs text-slate-500">Del ingreso del mes</p>
             </div>
           </div>
 
@@ -1175,7 +1185,7 @@
         </div>
 
         <div class="space-y-5 px-6 py-5">
-          <div class="grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1">
+          <div class="grid grid-cols-3 gap-2 rounded-xl bg-slate-100 p-1">
             <button
               type="button"
               class="tipo-btn rounded-lg px-3 py-2.5 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-green-600 focus-visible:ring-offset-1"
@@ -1191,6 +1201,14 @@
               onclick="setTipo('egreso')"
             >
               − Gasto
+            </button>
+            <button
+              type="button"
+              class="tipo-btn rounded-lg px-3 py-2.5 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
+              id="btn-ah"
+              onclick="setTipo('ahorro')"
+            >
+              + Ahorro
             </button>
           </div>
 

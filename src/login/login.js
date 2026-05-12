@@ -86,7 +86,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   focusField($username);
 });
 
-// Keep stored remembered username in sync when user toggles the checkbox
+// Keep stored remembered email in sync when user toggles the checkbox
 $rememberMe.addEventListener('change', async () => {
   const api = getElectronApi();
   if (!api) return;
@@ -99,7 +99,7 @@ $rememberMe.addEventListener('change', async () => {
   }
 });
 
-// If user edits username while remember is checked, update stored value
+// If user edits the email while remember is checked, update stored value
 $username.addEventListener('blur', async () => {
   const api = getElectronApi();
   if (!api) return;
@@ -124,17 +124,24 @@ $forgotPassword.addEventListener('click', async (event) => {
     return;
   }
 
-  const username = $username.value.trim();
-  if (!username) {
-    setFormMessage('Primero escribe tu usuario y luego presiona Forgot password.');
+  const email = $username.value.trim().toLowerCase();
+  if (!email) {
+    setFormMessage('Primero escribe tu correo y luego presiona olvidar contrasena.');
+    focusField($username);
+    return;
+  }
+
+  const result = await api.requestRecoveryCode({ email });
+  if (!result.ok) {
+    setFormMessage(result.message);
     focusField($username);
     return;
   }
 
   showResetPanel(true);
-  setFormMessage('Escribe tu contrasena actual y una nueva para actualizarla.', false);
-  showRecoveryCodeNotice('');
-  focusField($resetCurrentPassword);
+  setFormMessage(result.message, false);
+  showRecoveryCodeNotice('Te enviamos un codigo a tu correo. Revisa tu bandeja de entrada.');
+  focusField($recoveryCode);
 });
 
 $applyResetPassword.addEventListener('click', async () => {
@@ -143,12 +150,12 @@ $applyResetPassword.addEventListener('click', async () => {
     return;
   }
 
-  const username = $username.value.trim();
+  const email = $username.value.trim().toLowerCase();
   const currentPassword = $resetCurrentPassword.value;
   const newPassword = $resetNewPassword.value;
 
-  if (!username) {
-    setFormMessage('Debes escribir el usuario.');
+  if (!email) {
+    setFormMessage('Debes escribir el correo.');
     focusField($username);
     return;
   }
@@ -165,7 +172,7 @@ $applyResetPassword.addEventListener('click', async () => {
     return;
   }
 
-  const result = await api.resetPassword({ username, currentPassword, newPassword });
+  const result = await api.resetPassword({ email, currentPassword, newPassword });
   setFormMessage(result.ok ? 'La contrasena fue actualizada.' : result.message, !result.ok);
 
   if (!result.ok) {
@@ -195,12 +202,12 @@ $applyResetByCode.addEventListener('click', async () => {
     return;
   }
 
-  const username = $username.value.trim();
+  const email = $username.value.trim().toLowerCase();
   const recoveryCode = $recoveryCode.value.trim().toUpperCase();
   const newPassword = $resetNewPasswordByCode.value;
 
-  if (!username) {
-    setFormMessage('Debes escribir el usuario.');
+  if (!email) {
+    setFormMessage('Debes escribir el correo.');
     focusField($username);
     return;
   }
@@ -217,7 +224,7 @@ $applyResetByCode.addEventListener('click', async () => {
     return;
   }
 
-  const result = await api.resetWithCode({ username, recoveryCode, newPassword });
+  const result = await api.resetWithCode({ email, recoveryCode, newPassword });
   setFormMessage(result.ok ? result.message : result.message, !result.ok);
 
   if (!result.ok) {
@@ -237,13 +244,13 @@ $register.addEventListener('click', async () => {
     return;
   }
 
-  const username = $username.value.trim();
+  const email = $username.value.trim().toLowerCase();
   const password = $password.value;
 
-  if (!username || !password) {
-    setFormMessage('Debes escribir usuario y contrasena para registrarte.');
+  if (!email || !password) {
+    setFormMessage('Debes escribir correo y contrasena para registrarte.');
 
-    if (!username) {
+    if (!email) {
       focusField($username);
     } else {
       focusField($password);
@@ -252,14 +259,14 @@ $register.addEventListener('click', async () => {
     return;
   }
 
-  const result = await api.register({ username, password });
+  const result = await api.register({ email, password });
   setFormMessage(
-    result.ok ? 'Cuenta creada. Guarda el codigo de recuperacion.' : result.message,
+    result.ok ? 'Cuenta creada correctamente. Ya puedes iniciar sesion.' : result.message,
     !result.ok
   );
 
   if (result.ok) {
-    showRecoveryCodeNotice(result.recoveryCode || '');
+    showRecoveryCodeNotice('');
     focusField($password);
     return;
   }
@@ -277,13 +284,13 @@ $form.addEventListener('submit', async (event) => {
     return;
   }
 
-  const username = $username.value.trim();
+  const email = $username.value.trim().toLowerCase();
   const password = $password.value;
 
-  if (!username || !password) {
-    setFormMessage('Debes escribir usuario y contrasena.');
+  if (!email || !password) {
+    setFormMessage('Debes escribir correo y contrasena.');
 
-    if (!username) {
+    if (!email) {
       focusField($username);
     } else {
       focusField($password);
@@ -293,7 +300,7 @@ $form.addEventListener('submit', async (event) => {
   }
 
   const result = await api.login({
-    username,
+    email,
     password,
     rememberMe: $rememberMe.checked,
   });
@@ -303,7 +310,7 @@ $form.addEventListener('submit', async (event) => {
     if (
       String(result.message || '')
         .toLowerCase()
-        .includes('usuario no encontrado')
+        .includes('correo no encontrado')
     ) {
       focusField($username);
     } else {

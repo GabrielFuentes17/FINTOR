@@ -694,12 +694,19 @@ function saveProfile(app, profile, username = '') {
 }
 
 function getFinanceState(app, username = '') {
+  const profile = getProfile(app, username);
+  
+  // Si el email del perfil está vacío, usamos el username (que es el email del login)
+  if (!profile.email && username) {
+    profile.email = username;
+  }
+  
   return {
     transactions: listTransactions(app, username),
     budgets: listBudgets(app, username),
     savings: listSavingsGoals(app, username),
     reminders: listReminders(app, username),
-    profile: getProfile(app, username),
+    profile: profile,
     budgetSnapshot: getBudgetSnapshot(app, username),
   };
 }

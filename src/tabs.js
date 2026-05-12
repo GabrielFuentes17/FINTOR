@@ -156,16 +156,18 @@ function renderStaticMetadata() {
   if (dashboardMonthLabel) dashboardMonthLabel.textContent = monthLabel;
   if (dashboardSubtitle)
     dashboardSubtitle.textContent = `Ingreso mensual · ${profile.currency || 'USD'}`;
-  if (dashboardExpenseNote) dashboardExpenseNote.textContent = `Gastos registrados · ${monthLabel}`;
+  if (dashboardExpenseNote) dashboardExpenseNote.textContent = `Gastos y ahorro registrados · ${monthLabel}`;
   if (dashboardBalanceNote) dashboardBalanceNote.textContent = `Balance actual · ${monthLabel}`;
   if (sidebarAvatar) sidebarAvatar.textContent = profileInitials(profile.name);
   if (sidebarUsername) sidebarUsername.textContent = profile.name || '';
+  if (document.getElementById('sidebar-career'))
+    document.getElementById('sidebar-career').textContent = profile.career || '';
   if (sidebarRemindersBadge) sidebarRemindersBadge.textContent = String(dueAttentionCount);
   if (transactionsSubtitle)
     transactionsSubtitle.textContent = `Historial de movimientos · ${monthLabel}`;
   if (budgetSubtitle) budgetSubtitle.textContent = `Límites de gasto · ${monthLabel}`;
   if (reportsSubtitle)
-    reportsSubtitle.textContent = `Ingresos vs gastos, distribución y análisis de ${monthLabel}.`;
+    reportsSubtitle.textContent = `Ingresos, gastos y ahorro, distribución y análisis de ${monthLabel}.`;
   if (reportsMonthLabel) reportsMonthLabel.textContent = monthLabel;
   if (reportAnalysisMonthChip) reportAnalysisMonthChip.textContent = monthLabel;
 }
@@ -190,7 +192,8 @@ function renderDashboardRecentList() {
   list.innerHTML = recent
     .map((tx) => {
       const isIncome = tx.tipo === 'ingreso';
-      const amountClass = isIncome ? 'text-green-600' : 'text-red-500';
+      const isSavings = tx.tipo === UI_SAVINGS_TYPE;
+      const amountClass = isIncome ? 'text-green-600' : isSavings ? 'text-amber-600' : 'text-red-500';
       const amountSign = isIncome ? '+' : '−';
       const iconBg = txIconBg(tx);
       return `
@@ -282,7 +285,7 @@ function renderDashboardWeekChart() {
     const bucket = byDate.get(String(tx.fecha));
     if (!bucket) return;
     if (tx.tipo === 'ingreso') bucket.income += Number(tx.monto) || 0;
-    if (tx.tipo === UI_EXPENSE_TYPE) bucket.expense += Number(tx.monto) || 0;
+    if (tx.tipo === UI_EXPENSE_TYPE || tx.tipo === UI_SAVINGS_TYPE) bucket.expense += Number(tx.monto) || 0;
   });
 
   const maxValue = Math.max(...days.map((item) => Math.max(item.income, item.expense)), 1);
@@ -313,7 +316,7 @@ function renderDashboardWeekChart() {
 function renderDashboard() {
   const profile = getProfileData();
   const totalExpenses = transacciones
-    .filter((tx) => tx.tipo === UI_EXPENSE_TYPE)
+    .filter((tx) => tx.tipo === UI_EXPENSE_TYPE || tx.tipo === UI_SAVINGS_TYPE)
     .reduce((sum, tx) => sum + (Number(tx.monto) || 0), 0);
   const balance = Number(profile.income || 0) - totalExpenses;
   const presupuesto = budgetSnapshotState
@@ -330,7 +333,7 @@ function renderDashboard() {
   if (incomeValue) incomeValue.textContent = fmtMoneyCompact(profile.income || 0);
   if (incomeNote) incomeNote.textContent = `Ingreso mensual · ${profile.currency || 'USD'}`;
   if (expenseValue) expenseValue.textContent = fmtMoneyCompact(totalExpenses);
-  if (expenseNote) expenseNote.textContent = 'Gastos registrados';
+  if (expenseNote) expenseNote.textContent = 'Gastos y ahorro registrados';
   if (balanceValue) balanceValue.textContent = fmtMoneyCompact(balance);
   if (balanceNote) balanceNote.textContent = balance >= 0 ? 'Saldo disponible' : 'Saldo negativo';
   if (incomeNote) incomeNote.title = generarResumen(presupuesto);
@@ -503,6 +506,7 @@ const GASTO_CATS = new Set([
   'Otro',
 ]);
 const UI_EXPENSE_TYPE = 'gasto';
+const UI_SAVINGS_TYPE = 'ahorro';
 const DB_EXPENSE_TYPE = 'egreso';
 const {
   calcularPresupuesto,
@@ -574,7 +578,7 @@ function hoyISO() {
   return hoyISOUtil();
 }
 
-function abrirModal(txId) {
+function abrirModal(txId, tipoInicial = '') {
   const overlay = document.getElementById('modal-overlay');
   if (!overlay) return;
   overlay.classList.remove('hidden');
@@ -602,7 +606,7 @@ function abrirModal(txId) {
     if (montoEl) montoEl.value = '';
     if (catEl) catEl.value = '';
     if (fechaEl) fechaEl.value = hoyISO();
-    setTipo(txTipo);
+    setTipo(tipoInicial || txTipo);
   }
   ['err-desc', 'err-monto', 'err-cat'].forEach(limpiar);
 }
@@ -623,24 +627,49 @@ function setTipo(t) {
   txTipo = t;
   const ing = document.getElementById('btn-ing');
   const eg = document.getElementById('btn-eg');
+  const ah = document.getElementById('btn-ah');
   const ingresoOn = 'bg-green-700 text-white shadow-sm ring-1 ring-black/5';
   const ingresoOff = 'bg-transparent text-slate-600 hover:bg-white/60';
   const egresoOn = 'bg-rose-600 text-white shadow-sm ring-1 ring-black/5';
   const egresoOff = 'bg-transparent text-slate-600 hover:bg-white/60';
+  const ahorroOn = 'bg-amber-500 text-white shadow-sm ring-1 ring-black/5';
+  const ahorroOff = 'bg-transparent text-slate-600 hover:bg-white/60';
 
   if (t === 'ingreso') {
     ing.className = `tipo-btn rounded-lg px-3 py-2.5 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-green-600 focus-visible:ring-offset-1 ${ingresoOn}`;
     eg.className = `tipo-btn rounded-lg px-3 py-2.5 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-1 ${egresoOff}`;
+    if (ah) {
+      ah.className = `tipo-btn rounded-lg px-3 py-2.5 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1 ${ahorroOff}`;
+    }
+  } else if (t === UI_SAVINGS_TYPE) {
+    ing.className = `tipo-btn rounded-lg px-3 py-2.5 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-green-600 focus-visible:ring-offset-1 ${ingresoOff}`;
+    eg.className = `tipo-btn rounded-lg px-3 py-2.5 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-1 ${egresoOff}`;
+    if (ah) {
+      ah.className = `tipo-btn rounded-lg px-3 py-2.5 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1 ${ahorroOn}`;
+    }
   } else {
     ing.className = `tipo-btn rounded-lg px-3 py-2.5 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-green-600 focus-visible:ring-offset-1 ${ingresoOff}`;
     eg.className = `tipo-btn rounded-lg px-3 py-2.5 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-1 ${egresoOn}`;
+    if (ah) {
+      ah.className = `tipo-btn rounded-lg px-3 py-2.5 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1 ${ahorroOff}`;
+    }
   }
 
   const cat = document.getElementById('tx-cat');
-  const v = cat.value;
-  const ok =
-    (t === 'ingreso' && INGRESO_CATS.has(v)) || (t === UI_EXPENSE_TYPE && GASTO_CATS.has(v));
-  if (!ok) cat.value = '';
+  if (!cat) return;
+
+  const currentValue = String(cat.value || '').trim();
+  const categories = getTransactionCategoriesForType(t);
+  cat.innerHTML = renderTransactionCategoryOptions(t);
+
+  const validValues = new Set(categories.map((item) => item.value));
+  if (currentValue && validValues.has(currentValue)) {
+    cat.value = currentValue;
+  } else if (t === UI_SAVINGS_TYPE && categories.length) {
+    cat.value = categories[0].value;
+  } else {
+    cat.value = '';
+  }
 }
 
 function limpiar(id) {
@@ -684,6 +713,15 @@ async function guardarTx() {
       mostrarError('err-cat');
       ok = false;
     }
+  } else if (txTipo === UI_SAVINGS_TYPE) {
+    if (!catInput) {
+      mostrarError('err-cat');
+      ok = false;
+    }
+    if (catInput && !isSavingsGoalCategory(catInput)) {
+      mostrarError('err-cat');
+      ok = false;
+    }
   } else {
     const inferredCategory = effectiveCat;
     if (!isExpenseCategory(inferredCategory)) {
@@ -704,6 +742,7 @@ async function guardarTx() {
   };
   // si editingTxId está seteado, actualizar; si no, crear
   if (editingTxId) {
+    const previousTx = transacciones.find((t) => Number(t.id) === Number(editingTxId));
     // update locally for immediate feedback
     const idx = transacciones.findIndex((t) => Number(t.id) === Number(editingTxId));
     const updatedLocal = {
@@ -715,6 +754,7 @@ async function guardarTx() {
       fecha: newTransaction.fecha,
     };
     if (idx >= 0) transacciones[idx] = updatedLocal;
+    await syncSavingsGoalsFromTransactionChange(previousTx, updatedLocal);
     refreshFinanceViews();
     cerrarModal();
 
@@ -741,6 +781,7 @@ async function guardarTx() {
     }
   } else {
     transacciones.unshift(newTransaction);
+    await syncSavingsGoalsFromTransactionChange(null, newTransaction);
     refreshFinanceViews();
     cerrarModal();
 
@@ -769,8 +810,10 @@ async function eliminarTx(id) {
   const confirmed = window.confirm('¿Eliminar esta transacción?');
   if (!confirmed) return;
   try {
+    const txToRemove = transacciones.find((t) => Number(t.id) === numericId);
     await window.electronAPI?.finance?.transactions?.delete(numericId);
     transacciones = transacciones.filter((t) => Number(t.id) !== numericId);
+    await syncSavingsGoalsFromTransactionChange(txToRemove, null);
     refreshFinanceViews();
   } catch (error) {
     console.error('eliminarTx error', error);
@@ -806,6 +849,7 @@ function fmtFechaLista(iso) {
 
 function txIconBg(tx) {
   if (tx.tipo === 'ingreso') return 'bg-blue-500';
+  if (tx.tipo === UI_SAVINGS_TYPE) return 'bg-amber-500';
   const desc = tx.desc.toLowerCase();
   if (desc.includes('aliment') || tx.cat === 'Comida') return 'bg-pink-400';
   if (desc.includes('material') || tx.cat === 'Educación') return 'bg-red-500';
@@ -837,7 +881,12 @@ function renderTxList() {
   lista.innerHTML = filtradas
     .map((tx) => {
       const sign = tx.tipo === 'ingreso' ? '+' : '−';
-      const amountClass = tx.tipo === 'ingreso' ? 'text-green-600' : 'text-red-600';
+      const amountClass =
+        tx.tipo === 'ingreso'
+          ? 'text-green-600'
+          : tx.tipo === UI_SAVINGS_TYPE
+            ? 'text-amber-600'
+            : 'text-red-600';
       const iconBg = txIconBg(tx);
       return `
       <div class="flex items-center gap-4 px-6 py-4 transition hover:bg-slate-50/90">
@@ -889,6 +938,90 @@ const BUDGET_COLORS = [
 
 function getBudgetMap() {
   return normalizeBudgetMap(budgetState);
+}
+
+function isSavingsGoalCategory(name) {
+  const target = String(name || '').trim();
+  if (!target) return false;
+  return getSavingsGoalNames().includes(target);
+}
+
+function getSavingsGoalNames() {
+  return getSavingsGoals()
+    .map((goal) => String(goal.name || '').trim())
+    .filter(Boolean);
+}
+
+function getTransactionCategoriesForType(type) {
+  if (type === 'ingreso') {
+    return [...INGRESO_CATS].map((name) => ({ value: name, label: name }));
+  }
+
+  if (type === UI_SAVINGS_TYPE) {
+    return getSavingsGoalNames().map((name) => ({ value: name, label: name }));
+  }
+
+  return [...GASTO_CATS].map((name) => ({ value: name, label: name }));
+}
+
+function renderTransactionCategoryOptions(type) {
+  const categories = getTransactionCategoriesForType(type);
+  const placeholder = '<option value="">— Selecciona —</option>';
+
+  if (type === 'ingreso') {
+    return `${placeholder}<optgroup label="Ingresos">${categories
+      .map((item) => `<option value="${escapeAttr(item.value)}">${escapeHtml(item.label)}</option>`)
+      .join('')}</optgroup>`;
+  }
+
+  if (type === UI_SAVINGS_TYPE) {
+    const options = categories.length
+      ? categories
+          .map((item) => `<option value="${escapeAttr(item.value)}">${escapeHtml(item.label)}</option>`)
+          .join('')
+      : '<option value="" disabled>Primero crea una meta de ahorro</option>';
+    return `${placeholder}<optgroup label="Metas de ahorro">${options}</optgroup>`;
+  }
+
+  return `${placeholder}<optgroup label="Gastos">${categories
+    .map((item) => `<option value="${escapeAttr(item.value)}">${escapeHtml(item.label)}</option>`)
+    .join('')}</optgroup>`;
+}
+
+async function syncSavingsGoalsFromTransactionChange(previousTx, nextTx) {
+  const deltas = new Map();
+
+  const addDelta = (tx, multiplier) => {
+    if (!tx || String(tx.tipo || '').toLowerCase() !== UI_SAVINGS_TYPE) return;
+    const goalName = String(tx.cat || '').trim();
+    const amount = Number(tx.monto) || 0;
+    if (!goalName || amount <= 0) return;
+    deltas.set(goalName, (deltas.get(goalName) || 0) + multiplier * amount);
+  };
+
+  addDelta(previousTx, -1);
+  addDelta(nextTx, 1);
+
+  if (!deltas.size) return;
+
+  const goals = getSavingsGoals();
+  let changed = false;
+
+  deltas.forEach((delta, goalName) => {
+    const index = goals.findIndex((goal) => goal.name === goalName);
+    if (index < 0) return;
+
+    const currentSaved = Number(goals[index].saved) || 0;
+    const nextSaved = Math.max(0, currentSaved + delta);
+    if (nextSaved !== currentSaved) {
+      goals[index] = { ...goals[index], saved: nextSaved };
+      changed = true;
+    }
+  });
+
+  if (changed) {
+    await saveSavingsGoals(goals);
+  }
 }
 
 async function saveBudgetMap(map) {
@@ -1343,10 +1476,16 @@ function renderAhorros() {
         <h2 class="text-2xl font-bold text-slate-900">Ahorros</h2>
         <p class="mt-2 text-sm text-slate-600">Metas de ahorro activas</p>
       </div>
-      <button type="button" class="inline-flex items-center gap-2 rounded-full bg-green-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-green-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-600 focus-visible:ring-offset-2" onclick="openSavingsModal()">
-        <span class="text-base font-light leading-none">+</span>
-        Nueva meta
-      </button>
+      <div class="flex flex-wrap items-center gap-2">
+        <button type="button" class="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-white px-4 py-2 text-sm font-semibold text-amber-700 shadow-sm transition hover:bg-amber-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2" onclick="abrirModal(null, 'ahorro')">
+          <span class="text-base font-light leading-none">+</span>
+          Transacciones
+        </button>
+        <button type="button" class="inline-flex items-center gap-2 rounded-full bg-green-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-green-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-600 focus-visible:ring-offset-2" onclick="openSavingsModal()">
+          <span class="text-base font-light leading-none">+</span>
+          Nueva meta
+        </button>
+      </div>
     </div>
 
     <div class="mt-6 flex flex-col gap-3 rounded-2xl border border-lime-200 bg-lime-50/70 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1573,6 +1712,7 @@ function renderReportes() {
   const panel = document.getElementById('tab6');
   if (!panel) return;
   const profile = getProfileData();
+  const baseMonthlyIncome = Number(profile.income) || 0;
 
   const months = [];
   const dateCursor = new Date();
@@ -1583,33 +1723,56 @@ function renderReportes() {
       key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
       label: `${MESES_CORTO[d.getMonth()] ?? d.getMonth() + 1}`,
       income: 0,
+      incomeExtra: 0,
       expense: 0,
     });
   }
 
   const byMonth = new Map(months.map((item) => [item.key, item]));
   const categoryTotals = new Map();
+  const incomeCategoryTotals = new Map();
 
   transacciones.forEach((tx) => {
     const monthKey = tx.fecha?.slice(0, 7);
     const monthBucket = byMonth.get(monthKey);
     if (monthBucket) {
-      if (tx.tipo === 'ingreso') monthBucket.income += Number(tx.monto) || 0;
-      if (tx.tipo === UI_EXPENSE_TYPE) monthBucket.expense += Number(tx.monto) || 0;
+      if (tx.tipo === 'ingreso') {
+        const amount = Number(tx.monto) || 0;
+        monthBucket.incomeExtra += amount;
+        const current = incomeCategoryTotals.get(tx.cat) || 0;
+        incomeCategoryTotals.set(tx.cat, current + amount);
+      }
+      if (tx.tipo === UI_EXPENSE_TYPE || tx.tipo === UI_SAVINGS_TYPE)
+        monthBucket.expense += Number(tx.monto) || 0;
     }
 
-    if (tx.tipo === UI_EXPENSE_TYPE) {
+    if (tx.tipo === UI_EXPENSE_TYPE || tx.tipo === UI_SAVINGS_TYPE) {
       const current = categoryTotals.get(tx.cat) || 0;
       categoryTotals.set(tx.cat, current + (Number(tx.monto) || 0));
     }
   });
 
+  months.forEach((item) => {
+    item.income = baseMonthlyIncome + item.incomeExtra;
+  });
+
+  const currentMonth = months[months.length - 1] || { income: baseMonthlyIncome, incomeExtra: 0, expense: 0 };
+  const currentMonthIncome = currentMonth.income;
+  const currentMonthExtraIncome = currentMonth.incomeExtra || 0;
+  const currentMonthExpense = currentMonth.expense || 0;
+  const currentMonthBalance = currentMonthIncome - currentMonthExpense;
+  const currentMonthSavingsRate =
+    currentMonthIncome > 0
+      ? Math.max(0, Math.round((currentMonthBalance / currentMonthIncome) * 1000) / 10)
+      : 0;
+
   const incomeTotal = months.reduce((sum, item) => sum + item.income, 0);
+  const baseIncomeTotal = baseMonthlyIncome * months.length;
+  const extraIncomeTotal = incomeTotal - baseIncomeTotal;
   const expenseTotal = months.reduce((sum, item) => sum + item.expense, 0);
   const balanceTotal = incomeTotal - expenseTotal;
-  const savingsRate =
-    incomeTotal > 0 ? Math.max(0, Math.round((balanceTotal / incomeTotal) * 1000) / 10) : 0;
   const topCategory = [...categoryTotals.entries()].sort((a, b) => b[1] - a[1])[0];
+  const topIncomeCategory = [...incomeCategoryTotals.entries()].sort((a, b) => b[1] - a[1])[0];
 
   const monthChart = document.getElementById('report-month-chart');
   const categoryChart = document.getElementById('report-category-chart');
@@ -1619,13 +1782,18 @@ function renderReportes() {
   const savingsRateEl = document.getElementById('report-savings-rate');
   const insightEl = document.getElementById('report-insight');
   const topCategoryEl = document.getElementById('report-top-category');
+  const incomeBreakdownEl = document.getElementById('report-income-breakdown');
 
-  if (incomeEl) incomeEl.textContent = fmtMoneyCompact(incomeTotal);
+  if (incomeEl) incomeEl.textContent = fmtMoneyCompact(currentMonthIncome);
+  if (incomeBreakdownEl)
+    incomeBreakdownEl.textContent = `Base mensual ${fmtMoneyCompact(
+      baseMonthlyIncome
+    )} · Otros ingresos del mes ${fmtMoneyCompact(currentMonthExtraIncome)}`;
   if (expenseEl) expenseEl.textContent = fmtMoneyCompact(expenseTotal);
-  if (balanceEl) balanceEl.textContent = fmtMoneyCompact(balanceTotal);
-  if (savingsRateEl) savingsRateEl.textContent = `${savingsRate}%`;
+  if (balanceEl) balanceEl.textContent = fmtMoneyCompact(currentMonthBalance);
+  if (savingsRateEl) savingsRateEl.textContent = `${currentMonthSavingsRate}%`;
   if (topCategoryEl)
-    topCategoryEl.textContent = topCategory ? `Mayor gasto: ${topCategory[0]}` : 'Sin gastos';
+    topCategoryEl.textContent = topCategory ? `Mayor salida: ${topCategory[0]}` : 'Sin salidas';
 
   if (monthChart) {
     const maxValue = Math.max(...months.map((item) => Math.max(item.income, item.expense)), 1);
@@ -1683,17 +1851,60 @@ function renderReportes() {
   if (insightEl) {
     const topName = topCategory ? topCategory[0] : 'ninguna categoría';
     const topValue = topCategory ? fmtMoneyCompact(topCategory[1]) : fmtMoneyCompact(0);
+    const prevMonth = months[2]; // mes anterior
+    const currentMonth = months[3]; // mes actual
+    
+    // Comparación con mes anterior
+    const expenseDiff = currentMonth.expense - prevMonth.expense;
+    const expenseDiffText = expenseDiff > 0 
+      ? `aumentaron ${fmtMoneyCompact(expenseDiff)} vs el mes anterior`
+      : expenseDiff < 0
+      ? `disminuyeron ${fmtMoneyCompact(Math.abs(expenseDiff))} vs el mes anterior`
+      : `igual que el mes anterior`;
+    
+    // Estado de ahorro
+    const profile = getProfileData();
+    const savingsGoal = profile.savingsGoal || 0;
+    const savingsStatus = savingsGoal > 0 
+      ? currentMonthBalance >= savingsGoal 
+        ? `¡Excelente! Superaste tu meta de ahorro de ${fmtMoneyCompact(savingsGoal)}`
+        : `Ahorras ${fmtMoneyCompact(currentMonthBalance)} de tu meta de ${fmtMoneyCompact(savingsGoal)}`
+      : '';
+    
+    // Consejo personalizado
+    const budgets = getBudgetMap();
+    const budgetExceeded = Object.entries(budgets).filter(([cat, limit]) => {
+      const spent = categoryTotals.get(cat) || 0;
+      return spent > limit;
+    });
+    
+    let adviceText = '';
+    if (budgetExceeded.length > 0) {
+      const exceededNames = budgetExceeded.map(([cat]) => cat).join(' y ');
+      adviceText = `⚠️ Superaste el presupuesto en: <strong>${exceededNames}</strong>. Considera revisar estos gastos.`;
+    } else if (expenseDiff > 0) {
+      adviceText = `💡 Tus gastos ${expenseDiffText}. Intenta mantener un control similar al mes anterior.`;
+    } else if (currentMonthBalance > 0) {
+      adviceText = `✓ Buen mes financiero. Si continúas así, podrías llegar a tu meta de ahorro en ${savingsGoal > 0 ? Math.ceil(savingsGoal / currentMonthBalance) : '?'} meses.`;
+    } else {
+      adviceText = `Necesitas ajustar tus gastos. Tu categoría de mayor gasto es <strong>${escapeHtml(topName)}</strong> con ${topValue}.`;
+    }
+    
     const savingsMessage =
-      balanceTotal >= 0
-        ? `Este mes ahorraste ${fmtMoneyCompact(
-            balanceTotal
-          )}, un ${savingsRate}% de tus ingresos totales.`
-        : `Este mes gastaste ${fmtMoneyCompact(Math.abs(balanceTotal))} más de lo que ingresaste.`;
+      currentMonthBalance >= 0
+        ? `Este mes ahorraste ${fmtMoneyCompact(currentMonthBalance)}, un ${Math.max(0, Math.round((currentMonthBalance / Math.max(currentMonthIncome, 1)) * 1000) / 10)}% de tus ingresos.`
+        : `Este mes gastaste ${fmtMoneyCompact(Math.abs(currentMonthBalance))} más de lo que ingresaste.`;
+    const incomeMessage = topIncomeCategory
+      ? `Tus ingresos extra principales son ${escapeHtml(topIncomeCategory[0])} con ${fmtMoneyCompact(
+          topIncomeCategory[1]
+        )}.`
+      : 'No registraste ingresos extra este periodo.';
+    
     insightEl.innerHTML = `
       <p class="font-medium">${savingsMessage}</p>
-      <p class="mt-2">Tu categoría de mayor gasto es <strong>${escapeHtml(
-        topName
-      )}</strong> con ${topValue}. Considera reducir entretenimiento para mantenerte dentro del límite.</p>
+      <p class="mt-2 text-sm text-slate-600">${incomeMessage}</p>
+      ${savingsStatus ? `<p class="mt-2 text-sm text-green-700">🎯 ${savingsStatus}</p>` : ''}
+      <p class="mt-2 text-sm">${adviceText}</p>
     `;
   }
 }

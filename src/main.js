@@ -18,7 +18,7 @@ if (!app.isPackaged) {
       electron: path.join(__dirname, '..', 'node_modules', '.bin', 'electron'),
       ignored: /output\.css/,
     });
-  } catch (err) {
+  } catch {
     // If electron-reload isn't installed in this environment, ignore the error.
   }
 }
@@ -52,7 +52,6 @@ const createLoginWindow = () => {
     loginWindow = null;
   });
   loginWindow.loadFile(path.join(__dirname, 'login', 'login.html'));
-  loginWindow.webContents.openDevTools();
   return loginWindow;
 };
 
@@ -93,8 +92,6 @@ ipcMain.handle('auth:login', (_event, payload) => {
   const result = auth.authenticateUser(app, payload);
   if (result.ok) {
     activeUsername = result.username;
-    const p = financeDb.getProfile(app, activeUsername);
-    financeDb.saveProfile(app, { ...p, name: result.username }, activeUsername);
     setImmediate(() => createMainWindow());
   }
   return result;
@@ -104,6 +101,9 @@ ipcMain.handle('auth:register', (_event, payload) => auth.registerUser(app, payl
 ipcMain.handle('auth:get-remembered', () => auth.getRememberedUsername(app));
 ipcMain.handle('auth:set-remembered', (_event, username) =>
   auth.setRememberedUsername(app, username)
+);
+ipcMain.handle('auth:request-recovery-code', (_event, payload) =>
+  auth.requestRecoveryCode(app, payload)
 );
 ipcMain.handle('auth:reset-password', (_event, payload) => auth.resetPassword(app, payload));
 ipcMain.handle('auth:reset-with-code', (_event, payload) =>

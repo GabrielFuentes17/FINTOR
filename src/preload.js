@@ -6,6 +6,7 @@ const electronAPI = Object.freeze({
   register: (payload) => ipcRenderer.invoke('auth:register', payload),
   getRemembered: () => ipcRenderer.invoke('auth:get-remembered'),
   setRemembered: (username) => ipcRenderer.invoke('auth:set-remembered', username),
+  requestRecoveryCode: (payload) => ipcRenderer.invoke('auth:request-recovery-code', payload),
   resetPassword: (payload) => ipcRenderer.invoke('auth:reset-password', payload),
   resetWithCode: (payload) => ipcRenderer.invoke('auth:reset-with-code', payload),
   clearRemember: () => ipcRenderer.invoke('auth:clear-remember'),

@@ -52,6 +52,23 @@ pnpm start
 
 ---
 
+## ✉️ Correo de recuperación
+
+Si querés que el login envíe códigos de recuperación por correo, agregá un archivo `.env` en la raíz del proyecto con estas variables:
+
+```bash
+SMTP_HOST=smtp.tu-proveedor.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=tu_usuario
+SMTP_PASS=tu_clave
+SMTP_FROM=Fintor <tu_usuario@tu-dominio.com>
+```
+
+Podés usar `.env.example` como referencia.
+
+---
+
 ## ❓ Solución de problemas
 
 ### No me funciona `pnpm`
