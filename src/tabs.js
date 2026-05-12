@@ -86,6 +86,47 @@ function formatMonthLabel(date = new Date()) {
   return `${months[date.getMonth()] ?? "mes"} ${date.getFullYear()}`;
 }
 
+const THEME_STORAGE_KEY = "fintor:theme:v1";
+
+function getStoredTheme() {
+  try {
+    const value = localStorage.getItem(THEME_STORAGE_KEY);
+    return value === "dark" ? "dark" : "light";
+  } catch (error) {
+    console.error("getStoredTheme error", error);
+    return "light";
+  }
+}
+
+function setTheme(theme) {
+  const nextTheme = theme === "dark" ? "dark" : "light";
+  document.body.classList.toggle("theme-dark", nextTheme === "dark");
+  document.body.setAttribute("data-theme", nextTheme);
+
+  const toggleButton = document.getElementById("theme-toggle-btn");
+  const toggleLabel = document.getElementById("theme-toggle-label");
+  if (toggleButton) {
+    toggleButton.setAttribute("aria-pressed", nextTheme === "dark" ? "true" : "false");
+    toggleButton.classList.toggle("text-slate-100", nextTheme === "dark");
+    toggleButton.classList.toggle("hover:bg-slate-800", nextTheme === "dark");
+    toggleButton.classList.toggle("hover:bg-slate-50", nextTheme !== "dark");
+  }
+  if (toggleLabel) {
+    toggleLabel.textContent = nextTheme === "dark" ? "Modo claro" : "Modo oscuro";
+  }
+
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+  } catch (error) {
+    console.error("setTheme error", error);
+  }
+}
+
+function toggleTheme() {
+  const currentTheme = document.body.classList.contains("theme-dark") ? "dark" : "light";
+  setTheme(currentTheme === "dark" ? "light" : "dark");
+}
+
 function renderStaticMetadata() {
   const profile = getProfileData();
   const monthLabel = formatMonthLabel();
@@ -259,6 +300,12 @@ function renderDashboard() {
   renderDashboardWeekChart();
   renderDashboardRecentList();
   renderDashboardUpcomingList();
+}
+
+function refreshDashboardIfVisible() {
+  if (document.getElementById("tab1")?.classList.contains("active")) {
+    renderDashboard();
+  }
 }
 
 var txTipo = "ingreso";
@@ -554,6 +601,7 @@ async function guardarTx() {
     if (idx >= 0) transacciones[idx] = updatedLocal;
     renderTxList();
     if (document.getElementById("tab6")?.classList.contains("active")) renderReportes();
+    refreshDashboardIfVisible();
     cerrarModal();
 
     try {
@@ -571,6 +619,7 @@ async function guardarTx() {
         if (i >= 0) transacciones[i] = toUiTransaction(saved);
         renderTxList();
         if (document.getElementById("tab6")?.classList.contains("active")) renderReportes();
+        refreshDashboardIfVisible();
       }
     } catch (error) {
       console.error('guardarTx update error', error);
@@ -581,6 +630,7 @@ async function guardarTx() {
     transacciones.unshift(newTransaction);
     renderTxList();
     if (document.getElementById("tab6")?.classList.contains("active")) renderReportes();
+    refreshDashboardIfVisible();
     cerrarModal();
 
     try {
@@ -590,6 +640,7 @@ async function guardarTx() {
         transacciones[0] = toUiTransaction(saved);
         renderTxList();
         if (document.getElementById("tab6")?.classList.contains("active")) renderReportes();
+        refreshDashboardIfVisible();
       }
     } catch (error) {
       console.error('guardarTx create error', error);
@@ -607,6 +658,7 @@ async function eliminarTx(id) {
     transacciones = transacciones.filter(t => Number(t.id) !== numericId);
     renderTxList();
     if (document.getElementById("tab6")?.classList.contains("active")) renderReportes();
+    refreshDashboardIfVisible();
   } catch (error) {
     console.error('eliminarTx error', error);
   }
@@ -1831,6 +1883,8 @@ function renderRecordatorios() {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
+  setTheme(getStoredTheme());
+
   const logoutBtn = document.getElementById("logoutBtn");
   if (logoutBtn) {
     logoutBtn.addEventListener("click", () => {
