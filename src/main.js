@@ -5,11 +5,16 @@ const path = require('node:path');
 const auth = require('./auth/auth.js');
 const financeDb = require('./db.js');
 
-if (process.env.NODE_ENV !== 'production') {
-  require('electron-reload')(__dirname, {
-    electron: path.join(__dirname, '..', 'node_modules', '.bin', 'electron'),
-    ignored: /output\.css/,
-  });
+// Enable electron-reload only during development (when app is not packaged).
+if (!app.isPackaged) {
+  try {
+    require('electron-reload')(__dirname, {
+      electron: path.join(__dirname, '..', 'node_modules', '.bin', 'electron'),
+      ignored: /output\.css/,
+    });
+  } catch (err) {
+    // If electron-reload isn't installed in this environment, ignore the error.
+  }
 }
 
 if (require('electron-squirrel-startup')) {
