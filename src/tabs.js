@@ -557,13 +557,15 @@ async function guardarTx() {
     cerrarModal();
 
     try {
-      const saved = await window.electronAPI?.finance?.transactions?.update({ id: editingTxId, data: {
-        type: toDbTransactionType(newTransaction.tipo),
-        description: newTransaction.desc,
-        amount: newTransaction.monto,
-        category: newTransaction.cat,
-        date: newTransaction.fecha,
-      }});
+      const saved = await window.electronAPI?.finance?.transactions?.update({
+        id: editingTxId, data: {
+          type: toDbTransactionType(newTransaction.tipo),
+          description: newTransaction.desc,
+          amount: newTransaction.monto,
+          category: newTransaction.cat,
+          date: newTransaction.fecha,
+        }
+      });
       if (saved) {
         const i = transacciones.findIndex(t => Number(t.id) === Number(editingTxId));
         if (i >= 0) transacciones[i] = toUiTransaction(saved);
@@ -1122,13 +1124,13 @@ function renderAhorros() {
 
     <div class="mt-6 grid gap-4 lg:grid-cols-3">
       ${goals.map((goal, index) => {
-        const current = Number(goal.saved) || 0;
-        const target = Math.max(1, Number(goal.target) || 1);
-        const pct = Math.min(100, Math.round((current / target) * 100));
-        const remaining = Math.max(0, target - current);
-        const colors = savingsColorFor(goal, index);
-        const ringPct = `${pct}%`;
-        return `
+    const current = Number(goal.saved) || 0;
+    const target = Math.max(1, Number(goal.target) || 1);
+    const pct = Math.min(100, Math.round((current / target) * 100));
+    const remaining = Math.max(0, target - current);
+    const colors = savingsColorFor(goal, index);
+    const ringPct = `${pct}%`;
+    return `
           <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
             <div class="flex items-start justify-between gap-3">
               <button type="button" class="flex items-center justify-center rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50" onclick='openSavingsModal(${JSON.stringify(goal.name)})'>Editar</button>
@@ -1159,7 +1161,7 @@ function renderAhorros() {
             </div>
           </div>
         `;
-      }).join('')}
+  }).join('')}
     </div>
 
     <div class="mt-6 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
@@ -1376,10 +1378,10 @@ function renderReportes() {
     const maxCategory = Math.max(...categoryEntries.map(([, value]) => value), 1);
     categoryChart.innerHTML = categoryEntries.length
       ? categoryEntries
-          .map(([name, value], index) => {
-            const width = Math.round((value / maxCategory) * 100);
-            const color = budgetColorFor(name);
-            return `
+        .map(([name, value], index) => {
+          const width = Math.round((value / maxCategory) * 100);
+          const color = budgetColorFor(name);
+          return `
               <div>
                 <div class="flex items-center justify-between gap-3 text-sm">
                   <div class="flex items-center gap-3 min-w-0">
@@ -1393,8 +1395,8 @@ function renderReportes() {
                 </div>
               </div>
             `;
-          })
-          .join("")
+        })
+        .join("")
       : '<div class="rounded-xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">Aún no hay gastos para mostrar.</div>';
   }
 
@@ -1795,9 +1797,9 @@ function renderRecordatorios() {
 
   list.innerHTML = reminders.length
     ? reminders
-        .map(reminder => {
-          const colors = REMINDER_COLORS[reminder.color] || REMINDER_COLORS.gray;
-          return `
+      .map(reminder => {
+        const colors = REMINDER_COLORS[reminder.color] || REMINDER_COLORS.gray;
+        return `
             <div class="flex flex-col gap-3 px-6 py-4 ${colors.card}">
               <div class="flex items-stretch gap-4">
                 <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${colors.date} text-center leading-tight shadow-sm">
@@ -1823,8 +1825,8 @@ function renderRecordatorios() {
               </div>
             </div>
           `;
-        })
-        .join("")
+      })
+      .join("")
     : '<div class="px-6 py-12 text-center text-sm text-slate-500">No hay recordatorios todavía.</div>';
 }
 
@@ -1877,3 +1879,37 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (reminderDateInput) reminderDateInput.addEventListener("input", syncReminderDaysFromDate);
   if (reminderDaysInput) reminderDaysInput.addEventListener("input", syncReminderDateFromDays);
 });
+
+function openTab(evt, tabId) {
+  document.querySelectorAll(".content").forEach(tab => {
+    tab.style.display = "none";
+    tab.classList.remove("active");
+  });
+
+  document.querySelectorAll(".nav-link").forEach(link => {
+    link.classList.remove(
+      "bg-green-100",
+      "text-green-800",
+      "font-semibold"
+    );
+
+    link.classList.add("text-slate-600");
+  });
+
+  const currentTab = document.getElementById(tabId);
+
+  if (currentTab) {
+    currentTab.style.display = "flex";
+    currentTab.classList.add("active");
+  }
+
+  if (evt?.currentTarget) {
+    evt.currentTarget.classList.add(
+      "bg-green-100",
+      "text-green-800",
+      "font-semibold"
+    );
+  }
+}
+
+window.openTab = openTab;
