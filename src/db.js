@@ -1,5 +1,6 @@
 const Database = require('better-sqlite3');
 const path = require('node:path');
+const { calcularPresupuesto, normalizeBudgetSnapshot } = require('./finance/budget.js');
 
 const EMPTY_PROFILE = {
   name: '',
@@ -15,6 +16,7 @@ const EMPTY_PROFILE = {
 };
 
 let database;
+const BUDGET_SNAPSHOT_META_KEY = 'budget_snapshot:v1';
 
 function getDatabase(app) {
   if (!database) {
@@ -92,11 +94,15 @@ function normalizeNumber(value, fallback = 0) {
 
 function listTransactions(app) {
   const db = getDatabase(app);
-  return db.prepare(`
+  return db
+    .prepare(
+      `
     SELECT id, type, description, amount, category, date
     FROM transactions
     ORDER BY date DESC, id DESC
-  `).all();
+  `
+    )
+    .all();
 }
 
 function createTransaction(app, payload) {
@@ -109,10 +115,14 @@ function createTransaction(app, payload) {
     date: normalizeText(payload?.date),
   };
 
-  const result = db.prepare(`
+  const result = db
+    .prepare(
+      `
     INSERT INTO transactions (type, description, amount, category, date)
     VALUES (@type, @description, @amount, @category, @date)
-  `).run(transaction);
+  `
+    )
+    .run(transaction);
 
   return { id: result.lastInsertRowid, ...transaction };
 }
@@ -128,7 +138,8 @@ function updateTransaction(app, id, payload) {
     date: normalizeText(payload?.date),
   };
 
-  db.prepare(`
+  db.prepare(
+    `
     UPDATE transactions
     SET type = @type,
         description = @description,
@@ -137,7 +148,8 @@ function updateTransaction(app, id, payload) {
         date = @date,
         updated_at = CURRENT_TIMESTAMP
     WHERE id = @id
-  `).run(transaction);
+  `
+  ).run(transaction);
 
   return transaction;
 }
@@ -151,7 +163,9 @@ function deleteTransaction(app, id) {
 
 function listBudgets(app) {
   const db = getDatabase(app);
-  const rows = db.prepare('SELECT name, limit_amount FROM budgets ORDER BY name COLLATE NOCASE').all();
+  const rows = db
+    .prepare('SELECT name, limit_amount FROM budgets ORDER BY name COLLATE NOCASE')
+    .all();
   return rows.reduce((accumulator, row) => {
     accumulator[row.name] = row.limit_amount;
     return accumulator;
@@ -183,11 +197,13 @@ function upsertBudget(app, payload) {
     return listBudgets(app);
   }
 
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO budgets (name, limit_amount)
     VALUES (?, ?)
     ON CONFLICT(name) DO UPDATE SET limit_amount = excluded.limit_amount
-  `).run(name, limitAmount);
+  `
+  ).run(name, limitAmount);
 
   return listBudgets(app);
 }
@@ -198,13 +214,63 @@ function deleteBudget(app, name) {
   return listBudgets(app);
 }
 
+function getAppMetaValue(app, key) {
+  const db = getDatabase(app);
+  const row = db.prepare('SELECT value FROM app_meta WHERE key = ?').get(normalizeText(key));
+  return row ? row.value : null;
+}
+
+function setAppMetaValue(app, key, value) {
+  const db = getDatabase(app);
+  const normalizedKey = normalizeText(key);
+  const normalizedValue = String(value ?? '');
+
+  if (!normalizedKey) {
+    return null;
+  }
+
+  db.prepare(
+    `
+    INSERT INTO app_meta (key, value)
+    VALUES (?, ?)
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value
+  `
+  ).run(normalizedKey, normalizedValue);
+
+  return normalizedValue;
+}
+
+function getBudgetSnapshot(app) {
+  const rawValue = getAppMetaValue(app, BUDGET_SNAPSHOT_META_KEY);
+
+  if (rawValue) {
+    try {
+      return normalizeBudgetSnapshot(JSON.parse(rawValue));
+    } catch (error) {
+      console.error('getBudgetSnapshot parse error', error);
+    }
+  }
+
+  return calcularPresupuesto(getProfile(app).income);
+}
+
+function saveBudgetSnapshot(app, payload) {
+  const snapshot = normalizeBudgetSnapshot(payload);
+  setAppMetaValue(app, BUDGET_SNAPSHOT_META_KEY, JSON.stringify(snapshot));
+  return snapshot;
+}
+
 function listSavingsGoals(app) {
   const db = getDatabase(app);
-  return db.prepare(`
+  return db
+    .prepare(
+      `
     SELECT name, saved, target, note, color
     FROM savings_goals
     ORDER BY rowid ASC
-  `).all();
+  `
+    )
+    .all();
 }
 
 function replaceSavingsGoals(app, goals) {
@@ -217,7 +283,7 @@ function replaceSavingsGoals(app, goals) {
       INSERT INTO savings_goals (name, saved, target, note, color)
       VALUES (@name, @saved, @target, @note, @color)
     `);
-    entries.forEach(goal => {
+    entries.forEach((goal) => {
       const name = normalizeText(goal?.name);
       if (!name) return;
       insertGoal.run({
@@ -239,7 +305,8 @@ function upsertSavingsGoal(app, payload) {
   const name = normalizeText(payload?.name);
   if (!name) return listSavingsGoals(app);
 
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO savings_goals (name, saved, target, note, color)
     VALUES (?, ?, ?, ?, ?)
     ON CONFLICT(name) DO UPDATE SET
@@ -247,12 +314,13 @@ function upsertSavingsGoal(app, payload) {
       target = excluded.target,
       note = excluded.note,
       color = excluded.color
-  `).run(
+  `
+  ).run(
     name,
     normalizeNumber(payload?.saved),
     Math.max(1, normalizeNumber(payload?.target, 1)),
     normalizeText(payload?.note),
-    normalizeText(payload?.color) || 'green',
+    normalizeText(payload?.color) || 'green'
   );
 
   return listSavingsGoals(app);
@@ -266,11 +334,15 @@ function deleteSavingsGoal(app, name) {
 
 function listReminders(app) {
   const db = getDatabase(app);
-  return db.prepare(`
+  return db
+    .prepare(
+      `
     SELECT name, description, amount, date, category, status, days, color
     FROM reminders
     ORDER BY date ASC, name ASC
-  `).all();
+  `
+    )
+    .all();
 }
 
 function replaceReminders(app, reminders) {
@@ -283,7 +355,7 @@ function replaceReminders(app, reminders) {
       INSERT INTO reminders (name, description, amount, date, category, status, days, color)
       VALUES (@name, @description, @amount, @date, @category, @status, @days, @color)
     `);
-    entries.forEach(reminder => {
+    entries.forEach((reminder) => {
       const name = normalizeText(reminder?.name);
       if (!name) return;
       insertReminder.run({
@@ -308,7 +380,8 @@ function upsertReminder(app, payload) {
   const name = normalizeText(payload?.name);
   if (!name) return listReminders(app);
 
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO reminders (name, description, amount, date, category, status, days, color)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(name) DO UPDATE SET
@@ -319,7 +392,8 @@ function upsertReminder(app, payload) {
       status = excluded.status,
       days = excluded.days,
       color = excluded.color
-  `).run(
+  `
+  ).run(
     name,
     normalizeText(payload?.description),
     normalizeNumber(payload?.amount),
@@ -327,7 +401,7 @@ function upsertReminder(app, payload) {
     normalizeText(payload?.category),
     normalizeText(payload?.status) || 'próximo',
     Number.parseInt(payload?.days, 10) || 0,
-    normalizeText(payload?.color) || 'gray',
+    normalizeText(payload?.color) || 'gray'
   );
 
   return listReminders(app);
@@ -341,7 +415,9 @@ function deleteReminder(app, name) {
 
 function getProfile(app) {
   const db = getDatabase(app);
-  const row = db.prepare(`
+  const row = db
+    .prepare(
+      `
     SELECT name, email, career, income, savings_goal AS savingsGoal, currency,
            notifications_enabled AS notificationsEnabled,
            alert_budget AS alertBudget,
@@ -349,7 +425,9 @@ function getProfile(app) {
            alert_monthly AS alertMonthly
     FROM profile
     WHERE id = 1
-  `).get();
+  `
+    )
+    .get();
 
   if (!row) {
     return { ...EMPTY_PROFILE };
@@ -370,7 +448,8 @@ function getProfile(app) {
 }
 
 function insertOrUpdateProfile(db, profile) {
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO profile (
       id, name, email, career, income, savings_goal, currency,
       notifications_enabled, alert_budget, alert_reminders, alert_monthly
@@ -389,7 +468,8 @@ function insertOrUpdateProfile(db, profile) {
       alert_budget = excluded.alert_budget,
       alert_reminders = excluded.alert_reminders,
       alert_monthly = excluded.alert_monthly
-  `).run({
+  `
+  ).run({
     name: normalizeText(profile?.name),
     email: normalizeText(profile?.email),
     career: normalizeText(profile?.career),
@@ -416,6 +496,7 @@ function getFinanceState(app) {
     savings: listSavingsGoals(app),
     reminders: listReminders(app),
     profile: getProfile(app),
+    budgetSnapshot: getBudgetSnapshot(app),
   };
 }
 
@@ -429,6 +510,8 @@ module.exports = {
   replaceBudgets,
   upsertBudget,
   deleteBudget,
+  getBudgetSnapshot,
+  saveBudgetSnapshot,
   listSavingsGoals,
   replaceSavingsGoals,
   upsertSavingsGoal,

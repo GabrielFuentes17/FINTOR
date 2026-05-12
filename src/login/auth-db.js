@@ -122,10 +122,12 @@ function registerUser(app, payload) {
   const recoveryCode = generateRecoveryCode();
   const recoveryCodeHash = bcrypt.hashSync(recoveryCode, 10);
 
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO users (username, password_hash, recovery_code_hash)
     VALUES (?, ?, ?)
-  `).run(username, passwordHash, recoveryCodeHash);
+  `
+  ).run(username, passwordHash, recoveryCodeHash);
 
   return { ok: true, username, recoveryCode };
 }
@@ -140,7 +142,9 @@ function authenticateUser(app, payload) {
   }
 
   const db = getDatabase(app);
-  const existingUser = db.prepare('SELECT password_hash FROM users WHERE username = ?').get(username);
+  const existingUser = db
+    .prepare('SELECT password_hash FROM users WHERE username = ?')
+    .get(username);
 
   if (!existingUser) {
     return { ok: false, message: 'Usuario no encontrado. Debes registrarte primero.' };
@@ -178,7 +182,9 @@ function resetPassword(app, payload) {
   }
 
   const db = getDatabase(app);
-  const existingUser = db.prepare('SELECT id, password_hash FROM users WHERE username = ?').get(username);
+  const existingUser = db
+    .prepare('SELECT id, password_hash FROM users WHERE username = ?')
+    .get(username);
 
   if (!existingUser) {
     return { ok: false, message: 'No existe un usuario guardado con ese nombre.' };
@@ -190,22 +196,29 @@ function resetPassword(app, payload) {
   }
 
   const passwordHash = bcrypt.hashSync(newPassword, 10);
-  db.prepare(`
+  db.prepare(
+    `
     UPDATE users
     SET password_hash = ?, updated_at = CURRENT_TIMESTAMP
     WHERE username = ?
-  `).run(passwordHash, username);
+  `
+  ).run(passwordHash, username);
 
   return { ok: true, username };
 }
 
 function resetPasswordWithRecoveryCode(app, payload) {
   const username = normalizeUsername(payload?.username);
-  const recoveryCode = String(payload?.recoveryCode || '').trim().toUpperCase();
+  const recoveryCode = String(payload?.recoveryCode || '')
+    .trim()
+    .toUpperCase();
   const newPassword = normalizePassword(payload?.newPassword);
 
   if (!username || !recoveryCode || !newPassword) {
-    return { ok: false, message: 'Debes escribir usuario, codigo de recuperacion y nueva contrasena.' };
+    return {
+      ok: false,
+      message: 'Debes escribir usuario, codigo de recuperacion y nueva contrasena.',
+    };
   }
 
   const passwordValidation = validatePasswordStrength(newPassword);
@@ -214,7 +227,9 @@ function resetPasswordWithRecoveryCode(app, payload) {
   }
 
   const db = getDatabase(app);
-  const existingUser = db.prepare('SELECT id, recovery_code_hash FROM users WHERE username = ?').get(username);
+  const existingUser = db
+    .prepare('SELECT id, recovery_code_hash FROM users WHERE username = ?')
+    .get(username);
 
   if (!existingUser) {
     return { ok: false, message: 'No existe un usuario guardado con ese nombre.' };
@@ -233,11 +248,13 @@ function resetPasswordWithRecoveryCode(app, payload) {
   const nextRecoveryCode = generateRecoveryCode();
   const nextRecoveryCodeHash = bcrypt.hashSync(nextRecoveryCode, 10);
 
-  db.prepare(`
+  db.prepare(
+    `
     UPDATE users
     SET password_hash = ?, recovery_code_hash = ?, updated_at = CURRENT_TIMESTAMP
     WHERE username = ?
-  `).run(passwordHash, nextRecoveryCodeHash, username);
+  `
+  ).run(passwordHash, nextRecoveryCodeHash, username);
 
   return {
     ok: true,

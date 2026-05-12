@@ -7,12 +7,21 @@ module.exports = [
   },
   js.configs.recommended,
   {
-    files: ['src/main.js', 'src/preload.js', 'src/db.js', 'src/auth/**/*.js', 'src/login/auth-db.js', 'src/src/**/*.js'],
+    files: [
+      'src/main.js',
+      'src/preload.js',
+      'src/db.js',
+      'src/auth/**/*.js',
+      'src/login/auth-db.js',
+      'src/src/**/*.js',
+      'src/finance/**/*.js',
+    ],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'script',
       globals: {
         ...globals.node,
+        window: 'readonly',
       },
     },
     rules: {
@@ -42,6 +51,8 @@ module.exports = [
       sourceType: 'script',
       globals: {
         ...globals.browser,
+        require: 'readonly',
+        module: 'readonly',
       },
     },
     rules: {

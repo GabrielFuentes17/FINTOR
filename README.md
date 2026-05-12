@@ -9,11 +9,13 @@ Aplicación de escritorio construida con [Electron](https://www.electronjs.org/)
 Antes de correr el proyecto, necesitás instalar las siguientes herramientas:
 
 ### 1. Node.js
+
 Descargalo desde la página oficial: **https://nodejs.org**
 
 > Elegí la versión **LTS** (la que dice "Recommended For Most Users"). Esto también instala `npm` automáticamente.
 
 ### 2. pnpm
+
 Una vez instalado Node.js, abrí una terminal y ejecutá:
 
 ```bash
@@ -22,7 +24,8 @@ npm install -g pnpm
 
 > **¿Por qué pnpm y no npm?** Este proyecto usa pnpm como gestor de paquetes. Es más rápido y eficiente, pero si no te funciona, también podés usar `npm` (ver más abajo).
 
-### 3. Git *(si no lo tenés)*
+### 3. Git _(si no lo tenés)_
+
 Necesitás Git para clonar el repositorio: **https://git-scm.com**
 
 ---
@@ -52,28 +55,31 @@ pnpm start
 ## ❓ Solución de problemas
 
 ### No me funciona `pnpm`
+
 Podés usar `npm` en su lugar. Simplemente reemplazá los comandos así:
 
 | Comando con pnpm | Equivalente con npm |
-|------------------|---------------------|
+| ---------------- | ------------------- |
 | `pnpm install`   | `npm install`       |
 | `pnpm start`     | `npm start`         |
 
 ### Me aparece un error al ejecutar `pnpm install`
+
 Asegurate de estar dentro de la carpeta del proyecto (`cd fintor`) antes de ejecutarlo.
 
 ### La app no abre después de `pnpm start`
+
 Revisá que la instalación haya terminado correctamente sin errores. Si hay errores en rojo, copiálos y consultá con el equipo.
 
 ---
 
 ## 📁 Scripts disponibles
 
-| Comando | Descripción |
-|---------|-------------|
-| `pnpm start` | Inicia la aplicación en modo desarrollo |
-| `pnpm run tailwind:watch` | Compila Tailwind CSS en tiempo real |
-| `pnpm run make` | Genera el instalador de la aplicación |
+| Comando                   | Descripción                             |
+| ------------------------- | --------------------------------------- |
+| `pnpm start`              | Inicia la aplicación en modo desarrollo |
+| `pnpm run tailwind:watch` | Compila Tailwind CSS en tiempo real     |
+| `pnpm run make`           | Genera el instalador de la aplicación   |
 
 ---
 
@@ -85,4 +91,4 @@ Revisá que la instalación haya terminado correctamente sin errores. Si hay err
 
 ---
 
-*Desarrollado por Gabriel Fuentes*
+_Desarrollado por Gabriel Fuentes_
