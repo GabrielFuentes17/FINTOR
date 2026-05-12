@@ -5,12 +5,17 @@ const electronAPI = Object.freeze({
   login: (payload) => ipcRenderer.invoke('auth:login', payload),
   register: (payload) => ipcRenderer.invoke('auth:register', payload),
   getRemembered: () => ipcRenderer.invoke('auth:get-remembered'),
+  setRemembered: (username) => ipcRenderer.invoke('auth:set-remembered', username),
   resetPassword: (payload) => ipcRenderer.invoke('auth:reset-password', payload),
   resetWithCode: (payload) => ipcRenderer.invoke('auth:reset-with-code', payload),
   clearRemember: () => ipcRenderer.invoke('auth:clear-remember'),
   logout: () => ipcRenderer.send('auth:logout'),
   finance: {
     getState: () => ipcRenderer.invoke('finance:get-state'),
+    budgetSnapshot: {
+      get: () => ipcRenderer.invoke('finance:budget:snapshot:get'),
+      save: (payload) => ipcRenderer.invoke('finance:budget:snapshot:save', payload),
+    },
     transactions: {
       create: (payload) => ipcRenderer.invoke('finance:transactions:create', payload),
       update: (payload) => ipcRenderer.invoke('finance:transactions:update', payload),
@@ -35,6 +40,10 @@ const electronAPI = Object.freeze({
       get: () => ipcRenderer.invoke('finance:profile:get'),
       save: (payload) => ipcRenderer.invoke('finance:profile:save', payload),
     },
+  },
+  // Notifications via main process
+  notifications: {
+    notify: (payload) => ipcRenderer.send('notify', payload),
   },
 });
 

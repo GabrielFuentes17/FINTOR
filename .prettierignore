@@ -1,0 +1,12 @@
+node_modules
+dist
+build
+out
+.env
+.vscode
+.git
+.pnp
+.pnpm-debug.log
+package-lock.json
+pnpm-lock.yaml
+src/output.css

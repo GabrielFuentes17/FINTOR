@@ -8,6 +8,8 @@
   "scripts": {
     "start": "electron-forge start",
     "dev": "npm-run-all --parallel start tailwind:watch",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "tailwind:build": "tailwindcss -i ./src/index.css -o ./src/output.css",
     "tailwind:watch": "tailwindcss -i ./src/index.css -o ./src/output.css --watch",
     "package": "electron-forge package",
@@ -21,7 +23,6 @@
   "pnpm": {
     "onlyBuiltDependencies": [
       "@parcel/watcher",
-      
       "better-sqlite3",
       "electron",
       "electron-winstaller"
@@ -54,6 +55,7 @@
     "eslint": "^10.3.0",
     "globals": "^17.6.0",
     "npm-run-all": "^4.1.5",
-    "word-wrap": "^1.2.5"
+    "word-wrap": "^1.2.5",
+    "prettier": "^2.8.8"
   }
 }

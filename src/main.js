@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, Notification } = require('electron');
 const path = require('node:path');
 
 // Rutas adaptadas a la nueva estructura src/
@@ -34,10 +34,12 @@ const createLoginWindow = () => {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
-    }
+    },
   });
 
-  loginWindow.on('closed', () => { loginWindow = null; });
+  loginWindow.on('closed', () => {
+    loginWindow = null;
+  });
   loginWindow.loadFile(path.join(__dirname, 'login', 'login.html'));
   loginWindow.webContents.openDevTools();
   return loginWindow;
@@ -61,10 +63,15 @@ const createMainWindow = () => {
   });
 
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
-  mainWindow.on('closed', () => { mainWindow = null; });
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
   mainWindow.once('ready-to-show', () => {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.show();
-    if (loginWindow) { loginWindow.close(); loginWindow = null; }
+    if (loginWindow) {
+      loginWindow.close();
+      loginWindow = null;
+    }
   });
 
   return mainWindow;
@@ -84,24 +91,45 @@ ipcMain.handle('auth:login', (_event, payload) => {
 
 ipcMain.handle('auth:register', (_event, payload) => auth.registerUser(app, payload));
 ipcMain.handle('auth:get-remembered', () => auth.getRememberedUsername(app));
+ipcMain.handle('auth:set-remembered', (_event, username) =>
+  auth.setRememberedUsername(app, username)
+);
 ipcMain.handle('auth:reset-password', (_event, payload) => auth.resetPassword(app, payload));
-ipcMain.handle('auth:reset-with-code', (_event, payload) => auth.resetPasswordWithRecoveryCode(app, payload));
+ipcMain.handle('auth:reset-with-code', (_event, payload) =>
+  auth.resetPasswordWithRecoveryCode(app, payload)
+);
 ipcMain.handle('auth:clear-remember', () => auth.clearRememberedUsername(app));
 ipcMain.handle('auth:current-user', () => activeUsername ?? '');
 
 // Finanzas
 ipcMain.handle('finance:get-state', () => financeDb.getFinanceState(app));
-ipcMain.handle('finance:transactions:create', (_event, payload) => financeDb.createTransaction(app, payload));
-ipcMain.handle('finance:transactions:update', (_event, payload) => financeDb.updateTransaction(app, payload.id, payload.data));
+ipcMain.handle('finance:transactions:create', (_event, payload) =>
+  financeDb.createTransaction(app, payload)
+);
+ipcMain.handle('finance:transactions:update', (_event, payload) =>
+  financeDb.updateTransaction(app, payload.id, payload.data)
+);
 ipcMain.handle('finance:transactions:delete', (_event, id) => financeDb.deleteTransaction(app, id));
 ipcMain.handle('finance:budgets:set', (_event, payload) => financeDb.replaceBudgets(app, payload));
 ipcMain.handle('finance:budgets:upsert', (_event, payload) => financeDb.upsertBudget(app, payload));
 ipcMain.handle('finance:budgets:delete', (_event, name) => financeDb.deleteBudget(app, name));
-ipcMain.handle('finance:savings:set', (_event, payload) => financeDb.replaceSavingsGoals(app, payload));
-ipcMain.handle('finance:savings:upsert', (_event, payload) => financeDb.upsertSavingsGoal(app, payload));
+ipcMain.handle('finance:budget:snapshot:get', () => financeDb.getBudgetSnapshot(app));
+ipcMain.handle('finance:budget:snapshot:save', (_event, payload) =>
+  financeDb.saveBudgetSnapshot(app, payload)
+);
+ipcMain.handle('finance:savings:set', (_event, payload) =>
+  financeDb.replaceSavingsGoals(app, payload)
+);
+ipcMain.handle('finance:savings:upsert', (_event, payload) =>
+  financeDb.upsertSavingsGoal(app, payload)
+);
 ipcMain.handle('finance:savings:delete', (_event, name) => financeDb.deleteSavingsGoal(app, name));
-ipcMain.handle('finance:reminders:set', (_event, payload) => financeDb.replaceReminders(app, payload));
-ipcMain.handle('finance:reminders:upsert', (_event, payload) => financeDb.upsertReminder(app, payload));
+ipcMain.handle('finance:reminders:set', (_event, payload) =>
+  financeDb.replaceReminders(app, payload)
+);
+ipcMain.handle('finance:reminders:upsert', (_event, payload) =>
+  financeDb.upsertReminder(app, payload)
+);
 ipcMain.handle('finance:reminders:delete', (_event, name) => financeDb.deleteReminder(app, name));
 ipcMain.handle('finance:profile:get', () => financeDb.getProfile(app));
 ipcMain.handle('finance:profile:save', (_event, payload) => financeDb.saveProfile(app, payload));
@@ -121,4 +149,18 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
+});
+
+// Listen for renderer notification requests and show a native notification
+ipcMain.on('notify', (_event, payload) => {
+  try {
+    if (!payload || typeof payload !== 'object') return;
+    const title = String(payload.title || 'Notificación');
+    const body = String(payload.body || '');
+    const opts = { title, body };
+    const n = new Notification(opts);
+    n.show();
+  } catch (err) {
+    console.error('notify handler error', err);
+  }
 });
