@@ -40,4 +40,6 @@ const electronAPI = Object.freeze({
 
 if (process.contextIsolated) {
   contextBridge.exposeInMainWorld('electronAPI', electronAPI);
+} else {
+  window.electronAPI = electronAPI;
 }
